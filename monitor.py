@@ -173,7 +173,7 @@ def get_yr_rain_forecast(lat, lon):
         url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
         params = {"lat": lat, "lon": lon}
         resp = requests.get(
-            url, params=params, headers={"User-Agent": YR_USER_AGENT}, timeout=15
+            url, params=params, headers={"User-Agent": nick@hoogs.nz}, timeout=15
         )
         resp.raise_for_status()
         data = resp.json()
