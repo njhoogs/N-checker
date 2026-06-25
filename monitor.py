@@ -23,7 +23,29 @@ GDD_BASE_TEMP_C = 5.0            # base temp for growing degree day accumulation
 GDD_START_MONTH_DAY = "06-01"    # accumulate GDD from 1 June each year (adjust to your local season start)
 GDD_THRESHOLD_20KGDM = 150       # STARTING ESTIMATE ONLY — calibrate against your own farm-walk growth data
 RAIN_FORECAST_DAYS = 5
-RAIN_RISK_MM_5DAY = 40.0
+RAIN_RISK_MM_5DAY = 40.0  # fallback flat threshold if soil moisture data is unavailable
+
+# Root-zone soil moisture / leaching buffer assumptions.
+# Ryegrass root zone is often quoted at 300-400mm; using 300mm (the
+# conservative end) so the buffer calc doesn't overstate available capacity.
+ROOT_ZONE_DEPTH_MM = 300
+# Field capacity assumption for Canterbury's typical shallow stony soils —
+# a rough default, not soil-specific. Adjust if you have better local data.
+FIELD_CAPACITY_VWC = 0.30
+# Small safety margin added on top of the calculated buffer, since the
+# field capacity assumption above is approximate, not measured.
+RAIN_SAFETY_MARGIN_MM = 5.0
+
+# Rough presets for when exact S-map data isn't on hand. Field capacity
+# (VWC) and root zone (mm) — deliberately approximate, meant as a
+# better-than-default starting point, not a substitute for an actual
+# S-map lookup. Reference these in locations.json with "soil_type": "light"
+# etc., or override individually with "field_capacity_vwc"/"root_zone_depth_mm".
+SOIL_TYPE_PRESETS = {
+    "light": {"field_capacity_vwc": 0.20, "root_zone_depth_mm": 300},   # sandy/stony
+    "medium": {"field_capacity_vwc": 0.28, "root_zone_depth_mm": 350},
+    "heavy": {"field_capacity_vwc": 0.38, "root_zone_depth_mm": 400},   # silt/clay
+}
 
 # Apps Script web app URL (same one the webpage submits to) and the shared
 # secret that authorises list/delete actions (set as a Script Property
@@ -134,14 +156,19 @@ def get_soil_temp_status(lat, lon):
 
 def get_yr_rain_forecast(lat, lon):
     """
-    5-day total rainfall forecast. Tries yr.no (MET Norway) first, but falls
-    back to Open-Meteo's ECMWF model if yr.no blocks the request — this
-    happens often from CI/cloud datacenter IPs (like GitHub Actions runners)
-    regardless of User-Agent correctness, since MET Norway blocks many
-    shared cloud IP ranges as an anti-abuse measure.
+    5-day total rainfall forecast, plus a per-day breakdown for charting.
+    Tries yr.no (MET Norway) first, but falls back to Open-Meteo's ECMWF
+    model if yr.no blocks the request — this happens often from CI/cloud
+    datacenter IPs (like GitHub Actions runners) regardless of User-Agent
+    correctness, since MET Norway blocks many shared cloud IP ranges as an
+    anti-abuse measure.
 
-    Returns a tuple: (total_rain_mm, source_name)
+    Returns a tuple: (total_rain_mm, source_name, daily_breakdown)
+    where daily_breakdown is a list of (date_str, mm) for each of the next
+    RAIN_FORECAST_DAYS days.
     """
+    from datetime import datetime, timedelta
+
     try:
         url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
         params = {"lat": lat, "lon": lon}
@@ -155,6 +182,7 @@ def get_yr_rain_forecast(lat, lon):
         total_rain = 0.0
         counted_hours = 0
         target_hours = RAIN_FORECAST_DAYS * 24
+        daily_totals = {}
 
         for entry in timeseries:
             details = entry.get("data", {}).get("next_6_hours", {}).get("details", {})
@@ -162,10 +190,13 @@ def get_yr_rain_forecast(lat, lon):
             if precip is not None:
                 total_rain += precip
                 counted_hours += 6
+                day = entry["time"][:10]
+                daily_totals[day] = daily_totals.get(day, 0.0) + precip
             if counted_hours >= target_hours:
                 break
 
-        return total_rain, "yr.no (MET Norway)"
+        breakdown = sorted(daily_totals.items())[:RAIN_FORECAST_DAYS]
+        return total_rain, "yr.no (MET Norway)", breakdown
     except requests.RequestException as e:
         print(f"yr.no unavailable ({e}), falling back to Open-Meteo ECMWF.", file=sys.stderr)
         url = (
@@ -177,16 +208,114 @@ def get_yr_rain_forecast(lat, lon):
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
-        return sum(data["hourly"]["precipitation"]), "Open-Meteo (ECMWF model)"
+        times = data["hourly"]["time"]
+        precip_values = data["hourly"]["precipitation"]
+
+        daily_totals = {}
+        for t, p in zip(times, precip_values):
+            day = t[:10]
+            daily_totals[day] = daily_totals.get(day, 0.0) + p
+
+        breakdown = sorted(daily_totals.items())[:RAIN_FORECAST_DAYS]
+        total_rain = sum(mm for _, mm in breakdown)
+        return total_rain, "Open-Meteo (ECMWF model)", breakdown
 
 
-def check_location(name, lat, lon):
+def rain_bar_chart(daily_breakdown):
+    """Builds a simple ASCII bar chart of daily rainfall for a plain-text email."""
+    if not daily_breakdown:
+        return "(no daily breakdown available)"
+
+    max_mm = max(mm for _, mm in daily_breakdown) or 1
+    max_bar_width = 30
+    lines = []
+    for date_str, mm in daily_breakdown:
+        bar_len = round((mm / max_mm) * max_bar_width) if max_mm > 0 else 0
+        bar = "#" * bar_len
+        lines.append(f"{date_str}  {bar.ljust(max_bar_width)} {mm:.1f}mm")
+    return "\n".join(lines)
+
+
+def categorize_soil_moisture(vwc):
+    """
+    vwc = volumetric water content, m3/m3. These are rough general bands,
+    not soil-type-specific — Canterbury's shallow stony soils saturate at
+    lower absolute values than deep silt/clay soils, so treat as a guide.
+    """
+    if vwc < 0.15:
+        return "Dry"
+    if vwc < 0.25:
+        return "Moist"
+    if vwc < 0.35:
+        return "Wet"
+    return "Saturated"
+
+
+def get_soil_moisture(lat, lon, root_zone_depth_mm=None, field_capacity_vwc=None):
+    """
+    Depth-weighted root-zone soil moisture, plus the remaining buffer (mm)
+    before the soil reaches field capacity. Open-Meteo's soil moisture comes
+    in depth bands: 0-7cm, 7-28cm, 28-100cm. Defaults to the generic
+    ROOT_ZONE_DEPTH_MM / FIELD_CAPACITY_VWC assumptions, but accepts
+    per-farm overrides (e.g. sourced from an S-map factsheet lookup) for a
+    more accurate result on a specific paddock's actual soil type.
+    """
+    root_zone_depth_mm = root_zone_depth_mm or ROOT_ZONE_DEPTH_MM
+    field_capacity_vwc = field_capacity_vwc if field_capacity_vwc is not None else FIELD_CAPACITY_VWC
+
+    url = (
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}&longitude={lon}"
+        "&hourly=soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm"
+        "&past_days=1&forecast_days=1&timezone=Pacific%2FAuckland"
+    )
+    resp = requests.get(url, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    l1 = data["hourly"]["soil_moisture_0_to_7cm"]
+    l2 = data["hourly"]["soil_moisture_7_to_28cm"]
+    l3 = data["hourly"]["soil_moisture_28_to_100cm"]
+
+    last_idx = None
+    for i in range(len(l1) - 1, -1, -1):
+        if l1[i] is not None and l2[i] is not None and l3[i] is not None:
+            last_idx = i
+            break
+    if last_idx is None:
+        return None
+
+    root_zone_depth_cm = root_zone_depth_mm / 10
+    w1 = min(7, root_zone_depth_cm)
+    w2 = min(21, max(0, root_zone_depth_cm - 7))
+    w3 = max(0, root_zone_depth_cm - 28)
+
+    root_zone_vwc = (w1 * l1[last_idx] + w2 * l2[last_idx] + w3 * l3[last_idx]) / root_zone_depth_cm
+    deficit_mm = max(0.0, (field_capacity_vwc - root_zone_vwc) * root_zone_depth_mm)
+
+    return {
+        "vwc": root_zone_vwc,
+        "category": categorize_soil_moisture(root_zone_vwc),
+        "deficit_mm": deficit_mm,
+    }
+
+
+def check_location(name, lat, lon, root_zone_depth_mm=None, field_capacity_vwc=None):
     status = get_soil_temp_status(lat, lon)
-    rain_forecast, rain_source = get_yr_rain_forecast(lat, lon)
+    rain_forecast, rain_source, rain_breakdown = get_yr_rain_forecast(lat, lon)
+
+    try:
+        soil_moisture = get_soil_moisture(lat, lon, root_zone_depth_mm, field_capacity_vwc)
+    except requests.RequestException:
+        soil_moisture = None  # informational only; never blocks the check
+
+    rain_threshold_mm = (
+        soil_moisture["deficit_mm"] + RAIN_SAFETY_MARGIN_MM
+        if soil_moisture else RAIN_RISK_MM_5DAY  # fallback if data unavailable
+    )
 
     conditions_met = (
         status["growth_started"]
-        and rain_forecast < RAIN_RISK_MM_5DAY
+        and rain_forecast < rain_threshold_mm
     )
 
     return {
@@ -198,6 +327,9 @@ def check_location(name, lat, lon):
         "likely_strong_growth_20kgdm": status["likely_strong_growth"],
         "rain_forecast_5day_mm": round(rain_forecast, 1),
         "rain_source": rain_source,
+        "rain_breakdown": rain_breakdown,
+        "soil_moisture": soil_moisture,
+        "rain_threshold_mm": round(rain_threshold_mm, 1),
         "conditions_met": conditions_met,
         "as_of": status["as_of"],
     }
@@ -282,6 +414,16 @@ def process_subscribers():
             f"Accumulated GDD: {result['accumulated_gdd']} / {GDD_THRESHOLD_20KGDM}\n"
             f"Rain forecast (5 days): {result['rain_forecast_5day_mm']}mm\n"
             f"Rain forecast source: {result['rain_source']}\n"
+            f"Rain threshold used: {result['rain_threshold_mm']}mm\n"
+            + (
+                f"Soil moisture (300mm root zone): {result['soil_moisture']['category']} "
+                f"({result['soil_moisture']['vwc'] * 100:.0f}% VWC, "
+                f"~{result['soil_moisture']['deficit_mm']:.0f}mm buffer remaining)\n"
+                if result.get("soil_moisture") else ""
+            )
+            + f"\n"
+            f"Rainfall by day:\n"
+            f"{rain_bar_chart(result['rain_breakdown'])}\n"
             f"\n"
             f"---\n"
             f"How this was worked out:\n"
@@ -310,6 +452,15 @@ def process_subscribers():
             f"Open-Meteo's ECMWF model as a fallback \u2014 the source actually used for "
             f"this check is shown above.\n"
             f"\n"
+            f"Soil moisture: Depth-weighted across Open-Meteo's modelled layers to "
+            f"represent a 300mm root zone (the conservative end of ryegrass's typical "
+            f"300-400mm root depth). Converted into a remaining buffer (mm) before the "
+            f"soil reaches field capacity (assumed 30% VWC for Canterbury's typical "
+            f"shallow stony soils -- adjust if you have better local data). The rain "
+            f"threshold used to decide go/hold-off is that buffer plus a small safety "
+            f"margin, rather than a flat number -- a drier soil tolerates more forecast "
+            f"rain, a wetter soil triggers hold-off sooner.\n"
+            f"\n"
             f"These are modelled estimates, not a substitute for what you see and "
             f"feel in the paddock.\n"
         )
@@ -331,7 +482,15 @@ def main():
         triggered = []
         for name, coords in locations.items():
             try:
-                result = check_location(name, coords["lat"], coords["lon"])
+                preset = SOIL_TYPE_PRESETS.get(coords.get("soil_type", ""), {})
+                root_zone_depth_mm = coords.get("root_zone_depth_mm", preset.get("root_zone_depth_mm"))
+                field_capacity_vwc = coords.get("field_capacity_vwc", preset.get("field_capacity_vwc"))
+
+                result = check_location(
+                    name, coords["lat"], coords["lon"],
+                    root_zone_depth_mm=root_zone_depth_mm,
+                    field_capacity_vwc=field_capacity_vwc,
+                )
                 print(json.dumps(result))
                 if result["conditions_met"]:
                     triggered.append(result)
