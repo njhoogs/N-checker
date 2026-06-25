@@ -42,7 +42,7 @@ LOCATIONS_FILE = os.path.join(os.path.dirname(__file__), "locations.json")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
 
 # yr.no (MET Norway) requires an identifying User-Agent with contact info
-YR_USER_AGENT = "SpringNCheck/1.0 (contact: your-email@example.com)"
+YR_USER_AGENT = "SpringNCheck/1.0 (contact: nick@hoogs.nz)"
 
 
 def interpolate_10cm(t6, t18, weight=0.333):
