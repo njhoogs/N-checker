@@ -139,6 +139,8 @@ def get_yr_rain_forecast(lat, lon):
     happens often from CI/cloud datacenter IPs (like GitHub Actions runners)
     regardless of User-Agent correctness, since MET Norway blocks many
     shared cloud IP ranges as an anti-abuse measure.
+
+    Returns a tuple: (total_rain_mm, source_name)
     """
     try:
         url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
@@ -163,7 +165,7 @@ def get_yr_rain_forecast(lat, lon):
             if counted_hours >= target_hours:
                 break
 
-        return total_rain
+        return total_rain, "yr.no (MET Norway)"
     except requests.RequestException as e:
         print(f"yr.no unavailable ({e}), falling back to Open-Meteo ECMWF.", file=sys.stderr)
         url = (
@@ -175,12 +177,12 @@ def get_yr_rain_forecast(lat, lon):
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
-        return sum(data["hourly"]["precipitation"])
+        return sum(data["hourly"]["precipitation"]), "Open-Meteo (ECMWF model)"
 
 
 def check_location(name, lat, lon):
     status = get_soil_temp_status(lat, lon)
-    rain_forecast = get_yr_rain_forecast(lat, lon)
+    rain_forecast, rain_source = get_yr_rain_forecast(lat, lon)
 
     conditions_met = (
         status["growth_started"]
@@ -195,6 +197,7 @@ def check_location(name, lat, lon):
         "accumulated_gdd": round(status["accumulated_gdd"], 1),
         "likely_strong_growth_20kgdm": status["likely_strong_growth"],
         "rain_forecast_5day_mm": round(rain_forecast, 1),
+        "rain_source": rain_source,
         "conditions_met": conditions_met,
         "as_of": status["as_of"],
     }
@@ -273,10 +276,42 @@ def process_subscribers():
 
         subject = f"Spring N: conditions met at {sub['name']}"
         body = (
+            f"Conditions look right for spring N application at {sub['name']}.\n\n"
             f"Soil temp (10cm daily mean): {result['soil_temp_10cm']}\u00b0C\n"
             f"Growth started: {result['consecutive_days_above_threshold']} consecutive days \u22655.5\u00b0C\n"
             f"Accumulated GDD: {result['accumulated_gdd']} / {GDD_THRESHOLD_20KGDM}\n"
             f"Rain forecast (5 days): {result['rain_forecast_5day_mm']}mm\n"
+            f"Rain forecast source: {result['rain_source']}\n"
+            f"\n"
+            f"---\n"
+            f"How this was worked out:\n"
+            f"\n"
+            f"Soil temp (10cm daily mean): Interpolated from Open-Meteo's modelled "
+            f"6cm and 18cm soil temperature layers, averaged over each full day "
+            f"(rather than a single time-of-day reading) to smooth out the normal "
+            f"day/night swing.\n"
+            f"\n"
+            f"Growth started: Ryegrass is taken to have started active spring growth "
+            f"once the 10cm daily mean has held at or above 5.5\u00b0C for 5 consecutive "
+            f"days, following Frame's commonly-cited soil temperature threshold for "
+            f"ryegrass growth onset.\n"
+            f"\n"
+            f"Accumulated GDD: Growing degree days, summed as (daily mean - 5\u00b0C) for "
+            f"every day above that base temperature, starting 1 June. This is a "
+            f"secondary indicator of how much growth has likely accumulated. The "
+            f"150 GDD threshold shown is a starting estimate for when growth "
+            f"typically exceeds ~20kgDM/ha/day on Canterbury dairy pasture, and "
+            f"should be checked against actual farm-walk growth rates over a "
+            f"season and adjusted if needed.\n"
+            f"\n"
+            f"Rain forecast: Total rainfall expected over the next 5 days, used as a "
+            f"hold-off check against leaching/runoff risk shortly after application. "
+            f"Sourced from yr.no (MET Norway) where reachable, otherwise from "
+            f"Open-Meteo's ECMWF model as a fallback \u2014 the source actually used for "
+            f"this check is shown above.\n"
+            f"\n"
+            f"These are modelled estimates, not a substitute for what you see and "
+            f"feel in the paddock.\n"
         )
 
         if sub["email"]:
@@ -309,7 +344,7 @@ def main():
                 f"({r['consecutive_days_above_threshold']} days), "
                 f"GDD {r['accumulated_gdd']}"
                 + (" — likely >20kgDM/ha/day" if r['likely_strong_growth_20kgdm'] else "")
-                + f", rain {r['rain_forecast_5day_mm']}mm/5day"
+                + f", rain {r['rain_forecast_5day_mm']}mm/5day ({r['rain_source']})"
                 for r in triggered
             ]
             send_push("Spring N: conditions met", "\n".join(lines))
