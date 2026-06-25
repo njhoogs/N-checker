@@ -35,6 +35,15 @@ jobs:
           sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/index.html
           sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/index.html
 
+      - name: Verify substitution (debug, no secret values shown)
+        run: |
+          SECRET_LEN="${#APPS_SCRIPT_URL_SECRET}"
+          echo "APPS_SCRIPT_URL secret length (0 = not set or empty): $SECRET_LEN"
+          REMAINING=$(grep -c "APPS_SCRIPT_URL_PLACEHOLDER" _site/index.html || true)
+          echo "Placeholder occurrences remaining in built file (should be 0): $REMAINING"
+        env:
+          APPS_SCRIPT_URL_SECRET: ${{ secrets.APPS_SCRIPT_URL }}
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
