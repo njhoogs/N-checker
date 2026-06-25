@@ -1,0 +1,14 @@
+{
+  "Smith farm, block 3": {"lat": -44.029113, "lon": 171.277436},
+  "Example using soil_type shorthand (light/stony)": {
+    "lat": -43.91,
+    "lon": 171.75,
+    "soil_type": "light"
+  },
+  "Example with precise S-map override (deeper silt loam)": {
+    "lat": -43.80,
+    "lon": 171.95,
+    "root_zone_depth_mm": 400,
+    "field_capacity_vwc": 0.34
+  }
+}
