@@ -28,9 +28,12 @@ jobs:
         run: |
           mkdir -p _site
           cp spring-n-check.html _site/index.html
-          # Inject the real Maps key only into the built output, never into
-          # the committed source file in the repo.
+          # Inject real secrets only into the built output, never into the
+          # committed source file in the repo. APPS_SCRIPT_URL is the same
+          # GitHub secret monitor.py already reads — one place to update
+          # for both the webpage and the daily check.
           sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/index.html
+          sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -40,5 +43,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
 
