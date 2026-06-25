@@ -44,7 +44,7 @@ NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
 # yr.no (MET Norway) requires an identifying User-Agent with REAL contact
 # info — generic/placeholder values get blocked with a 403. Put your actual
 # email or a real domain here.
-YR_USER_AGENT = "SpringNCheck/1.0 nick@hoogs.nz"
+YR_USER_AGENT = "SpringNCheck/1.0 contact: nick@hoogs.nz"
 
 
 def interpolate_10cm(t6, t18, weight=0.333):
