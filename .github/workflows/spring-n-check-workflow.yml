@@ -1,6 +1,6 @@
 name: Daily Spring N Check
 
-on:
+"on":
   schedule:
     # 21:30 UTC = 9:30am NZST (UTC+12) / 8:30am NZDT (UTC+13)
     # Adjust the hour below by 1 if NZ daylight saving is in effect
@@ -29,5 +29,4 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: python monitor.py
-
 
