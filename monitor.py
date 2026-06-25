@@ -41,8 +41,10 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 LOCATIONS_FILE = os.path.join(os.path.dirname(__file__), "locations.json")
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
 
-# yr.no (MET Norway) requires an identifying User-Agent with contact info
-YR_USER_AGENT = "SpringNCheck/1.0 (contact: nick@hoogs.nz)"
+# yr.no (MET Norway) requires an identifying User-Agent with REAL contact
+# info — generic/placeholder values get blocked with a 403. Put your actual
+# email or a real domain here.
+YR_USER_AGENT = "SpringNCheck/1.0 contact@yourdomain.com"
 
 
 def interpolate_10cm(t6, t18, weight=0.333):
@@ -131,30 +133,49 @@ def get_soil_temp_status(lat, lon):
 
 
 def get_yr_rain_forecast(lat, lon):
-    """5-day total rainfall forecast from yr.no (MET Norway)."""
-    url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
-    params = {"lat": lat, "lon": lon}
-    resp = requests.get(
-        url, params=params, headers={"User-Agent": YR_USER_AGENT}, timeout=15
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    """
+    5-day total rainfall forecast. Tries yr.no (MET Norway) first, but falls
+    back to Open-Meteo's ECMWF model if yr.no blocks the request — this
+    happens often from CI/cloud datacenter IPs (like GitHub Actions runners)
+    regardless of User-Agent correctness, since MET Norway blocks many
+    shared cloud IP ranges as an anti-abuse measure.
+    """
+    try:
+        url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+        params = {"lat": lat, "lon": lon}
+        resp = requests.get(
+            url, params=params, headers={"User-Agent": YR_USER_AGENT}, timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
 
-    timeseries = data["properties"]["timeseries"]
-    total_rain = 0.0
-    counted_hours = 0
-    target_hours = RAIN_FORECAST_DAYS * 24
+        timeseries = data["properties"]["timeseries"]
+        total_rain = 0.0
+        counted_hours = 0
+        target_hours = RAIN_FORECAST_DAYS * 24
 
-    for entry in timeseries:
-        details = entry.get("data", {}).get("next_6_hours", {}).get("details", {})
-        precip = details.get("precipitation_amount")
-        if precip is not None:
-            total_rain += precip
-            counted_hours += 6
-        if counted_hours >= target_hours:
-            break
+        for entry in timeseries:
+            details = entry.get("data", {}).get("next_6_hours", {}).get("details", {})
+            precip = details.get("precipitation_amount")
+            if precip is not None:
+                total_rain += precip
+                counted_hours += 6
+            if counted_hours >= target_hours:
+                break
 
-    return total_rain
+        return total_rain
+    except requests.RequestException as e:
+        print(f"yr.no unavailable ({e}), falling back to Open-Meteo ECMWF.", file=sys.stderr)
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            f"?latitude={lat}&longitude={lon}&hourly=precipitation"
+            f"&forecast_days={RAIN_FORECAST_DAYS}&models=ecmwf_ifs025"
+            "&timezone=Pacific%2FAuckland"
+        )
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+        return sum(data["hourly"]["precipitation"])
 
 
 def check_location(name, lat, lon):
