@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Spring N Check (9am/7° TEST) — by Nick Hoogeveen</title>
+<style>
+  :root {
+    --soil: #4a3f2f;
+    --soil-dark: #2e2620;
+    --paddock: #5c6b3f;
+    --paddock-light: #7d8f57;
+    --cream: #f1ecdf;
+    --warn: #b5562f;
+    --ink: #1f1c16;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'Courier New', ui-monospace, SFMono-Regular, monospace;
+  }
+
+  body {
+    padding: 0 0 48px;
+  }
+
+  header {
+    background: var(--soil);
+    color: var(--cream);
+    padding: 22px 20px 18px;
+    border-bottom: 4px solid var(--paddock);
+  }
+
+  header .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--paddock-light);
+    margin: 0 0 4px;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 18px 16px 0;
+  }
+
+  .field {
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--soil);
+    margin-bottom: 6px;
+  }
+
+  .coord-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 12px 10px;
+    border: 2px solid var(--soil);
+    background: #fff;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--ink);
+    border-radius: 2px;
+  }
+
+  input:focus { outline: 3px solid var(--paddock-light); outline-offset: 1px; }
+
+  button {
+    font-family: inherit;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--paddock);
+    color: var(--cream);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 14px;
+    margin-top: 4px;
+  }
+  .btn-primary:active { background: var(--paddock-light); }
+  .btn-primary:disabled { background: #999; }
+
+  .btn-locate {
+    flex-shrink: 0;
+    background: var(--soil);
+    color: var(--cream);
+    padding: 0 16px;
+    font-size: 13px;
+    border-radius: 2px;
+  }
+
+  .status {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--soil);
+    min-height: 18px;
+  }
+
+  .result {
+    margin-top: 20px;
+    border: 3px solid var(--ink);
+    background: #fff;
+  }
+
+  .result.met { border-color: var(--paddock); }
+  .result.hold { border-color: var(--warn); }
+
+  .result-banner {
+    padding: 14px 16px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--cream);
+  }
+  .result.met .result-banner { background: var(--paddock); }
+  .result.hold .result-banner { background: var(--warn); }
+
+  .result-body { padding: 14px 16px; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px dashed #c9c0a8;
+    font-size: 14px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+
+  .stat-label { color: var(--soil); }
+  .stat-value { font-weight: 700; }
+
+  .reasons {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 2px solid var(--ink);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .as-of {
+    margin-top: 16px;
+    font-size: 11px;
+    color: #8a8068;
+    text-align: center;
+  }
+
+  details {
+    margin-bottom: 16px;
+    border: 1px solid #c9c0a8;
+    border-radius: 2px;
+    background: #fff;
+  }
+
+  details[open] {
+    padding-bottom: 12px;
+  }
+
+  summary {
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--soil);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker { display: none; }
+
+  summary::before {
+    content: '▸';
+    display: inline-block;
+    margin-right: 8px;
+    transition: transform 0.15s ease;
+  }
+
+  details[open] summary::before {
+    transform: rotate(90deg);
+  }
+
+  details .field, details > .footer-note {
+    margin: 0 14px 14px;
+  }
+
+  details .field:first-of-type {
+    margin-top: 4px;
+  }
+
+  .footer-note-details summary {
+    color: #8a8068;
+    font-size: 11px;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 700;
+  }
+
+  .footer-note {
+    font-size: 11px;
+    color: #8a8068;
+    line-height: 1.6;
+  }
+</style>
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Field check</p>
+  <h1>Spring N Trigger <span style="font-size:0.5em; opacity:0.7;">(9am/7° TEST)</span></h1>
+  <p style="margin:4px 0 0; font-size:12px; color:var(--paddock-light);">Created by Nick Hoogeveen — testing variant using Ballance's 9am/7°C rule instead of the daily-mean/5.5°C rule</p>
+</header>
+
+<main>
+  <details open>
+    <summary>Find a location</summary>
+    <div class="field">
+      <label for="savedSelect">Saved farms</label>
+      <select id="savedSelect">
+        <option value="">— Select a saved farm —</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="addressSearch">Find on map</label>
+      <div class="coord-row">
+        <input type="text" id="addressSearch" placeholder="e.g. Smith Road, Ashburton" />
+        <button class="btn-locate" id="searchBtn" type="button">Search</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div id="map" style="height:220px; border:2px solid var(--soil); border-radius:2px;"></div>
+      <p style="font-size:11px; color:#8a8068; margin:6px 0 0;">Tap or drag the pin to set the exact location.</p>
+    </div>
+  </details>
+
+  <input type="hidden" id="coords" />
+
+  <div id="resultContainer"></div>
+
+  <details id="soilSettingsDetails">
+    <summary>Soil settings</summary>
+    <div class="field">
+      <label for="soilTypeSelect">Soil type override (optional)</label>
+      <select id="soilTypeSelect">
+        <option value="">S-map (auto, default)</option>
+        <option value="light">Light / sandy / stony</option>
+        <option value="medium">Medium</option>
+        <option value="heavy">Heavy / silt-clay</option>
+        <option value="custom">Custom (type your own values)</option>
+      </select>
+      <p style="font-size:11px; color:#8a8068; margin:6px 0 0;">Soil data is looked up automatically from S-map for the pin's location. Only change this if you want to override it with a rough preset or your own numbers.</p>
+    </div>
+
+    <div class="field" id="customSoilFields">
+      <div id="manualSoilInputs" style="display:none;">
+        <label for="fieldCapacityInput">Field capacity %</label>
+        <div class="coord-row">
+          <input type="number" id="fieldCapacityInput" placeholder="e.g. 30" min="0" max="60" step="1" />
+          <input type="number" id="rootZoneInput" placeholder="Root zone mm, e.g. 300" min="100" max="500" step="10" style="margin-left:8px;" />
+        </div>
+      </div>
+      <div id="smapResult"></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Save / get notified</summary>
+    <div class="field">
+      <label for="farmName">Save this location as</label>
+      <div class="coord-row">
+        <input type="text" id="farmName" placeholder="e.g. Smith farm, block 3" />
+        <button class="btn-locate" id="saveBtn" type="button">Save</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="notifyEmail">Email address (for notifications)</label>
+      <input type="text" id="notifyEmail" placeholder="you@example.com" />
+    </div>
+
+    <button class="btn-primary" id="notifyBtn" type="button" style="background: var(--soil);">Let me know when it's time to start N applications</button>
+  </details>
+
+  <p class="status" id="status"></p>
+
+  <details class="footer-note-details">
+    <summary>How this works</summary>
+    <div class="footer-note">
+      Soil temp interpolated to 10cm from Open-Meteo's 6cm/18cm modelled layers. <strong>TEST VARIANT:</strong> growth-start trigger uses Ballance's 9am rule — soil temp at 9am &ge;7&deg;C and higher than the previous day's 9am reading — instead of the production tool's Frame's-rule (daily mean &ge;5.5&deg;C for 5 consecutive days). The soil temp chart still shows daily mean for visual reference, but the actual go/hold-off decision and the 10-year climatology comparison both use the 9am rule on this page. GDD accumulation (base 5&deg;C, from 1 June) still uses daily mean and is informational only — the 20kgDM/ha/day threshold is a starting estimate that should be calibrated against your own farm-walk data over a season. Rain forecast is summed over the next 7 days from yr.no (MET Norway) where the browser can reach it, falling back to Open-Meteo's ECMWF model otherwise. Soil moisture is depth-weighted across Open-Meteo's modelled layers to represent a 300mm root zone, then converted into a remaining buffer (mm) before the soil reaches field capacity (assumed 30% VWC for Canterbury's typical shallow stony soils — adjust if you have better local data). The rain threshold used to decide "go/hold off" is that buffer plus a small safety margin. Modelled data — treat as a guide alongside what you see and feel in the paddock.
+    </div>
+  </details>
+</main>
+
+<script>
+const SOIL_TEMP_THRESHOLD_C = 7.0; // Ballance's 9am threshold, not Frame's 5.5C daily-mean rule
+const CONSECUTIVE_DAYS_REQUIRED = 5; // kept for chart/GDD code that still references it; not used by the 9am growth-started check below
+const GDD_BASE_TEMP_C = 5.0;
+const GDD_START_MONTH_DAY = '06-01';
+const GDD_THRESHOLD_20KGDM = 150; // starting estimate — calibrate against your own farm-walk data
+const RAIN_FORECAST_DAYS = 7;
+
+// Root-zone soil moisture / leaching buffer assumptions.
+// Ryegrass root zone is often quoted at 300-400mm; using 300mm (the
+// conservative end) so the buffer calc doesn't overstate available capacity.
+const ROOT_ZONE_DEPTH_MM = 300;
+// Field capacity assumption for Canterbury's typical shallow stony soils —
+// a rough default, not soil-specific. Adjust if you have better local data.
+const FIELD_CAPACITY_VWC = 0.30;
+// Small safety margin added on top of the calculated buffer, since the
+// field capacity assumption above is approximate, not measured.
+const RAIN_SAFETY_MARGIN_MM = 5.0;
+
+const coordsInput = document.getElementById('coords');
+const addressSearchInput = document.getElementById('addressSearch');
+const searchBtn = document.getElementById('searchBtn');
+
+// --- Map setup ---
+// Default view: Canterbury, NZ. Centered roughly on Ashburton.
+const DEFAULT_MAP_CENTER = { lat: -43.91, lng: 171.75 };
+const DEFAULT_MAP_ZOOM = 9;
+
+const map = new google.maps.Map(document.getElementById('map'), {
+  center: DEFAULT_MAP_CENTER,
+  zoom: DEFAULT_MAP_ZOOM,
+  mapTypeId: 'hybrid', // satellite imagery + road/place labels, more useful for spotting paddocks than plain roadmap
+  streetViewControl: false,
+  mapTypeControl: false // no toggle — locked permanently to hybrid view
+});
+
+let marker = null;
+
+let programmaticMove = false;
+let dragSettleTimer = null;
+
+function setMarker(lat, lon, panTo) {
+  const pos = { lat, lng: lon };
+  if (marker) {
+    programmaticMove = true;
+    marker.setPosition(pos);
+    programmaticMove = false;
+  } else {
+    marker = new google.maps.Marker({
+      position: pos,
+      map: map,
+      draggable: true
+    });
+    // position_changed is more reliable than dragend on touch devices,
+    // where dragend can be missed if a touchcancel interrupts the gesture.
+    // It fires continuously during drag though, so debounce to only act
+    // once movement actually settles (i.e. the drag has finished).
+    marker.addListener('position_changed', () => {
+      if (programmaticMove) return; // ignore moves we triggered ourselves in code
+      clearTimeout(dragSettleTimer);
+      dragSettleTimer = setTimeout(() => {
+        const newPos = marker.getPosition();
+        updateCoordsFromMap(newPos.lat(), newPos.lng());
+      }, 350);
+    });
+  }
+  if (panTo) {
+    map.setCenter(pos);
+    map.setZoom(Math.max(map.getZoom(), 14));
+  }
+}
+
+let currentFieldCapacityVwc = null;
+let currentRootZoneDepthMm = null;
+
+async function updateCoordsFromMap(lat, lon, autoCheck = true) {
+  coordsInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+  setMarker(lat, lon, false);
+  // Moving the pin means we're no longer necessarily at the saved farm's
+  // exact spot, so clear any stale name/selection/soil overrides rather
+  // than applying them to a different location.
+  farmNameInput.value = '';
+  savedSelect.value = '';
+  fieldCapacityInput.value = '';
+  rootZoneInput.value = '';
+  soilTypeSelect.value = '';
+  manualSoilInputs.style.display = 'none';
+  currentFieldCapacityVwc = null;
+  currentRootZoneDepthMm = null;
+  updateNotifyButtonText();
+  reverseGeocodeLocality(lat, lon);
+  await autoApplySmapLookup(lat, lon);
+  if (autoCheck) runCheck();
+}
+
+map.addListener('click', (e) => {
+  updateCoordsFromMap(e.latLng.lat(), e.latLng.lng());
+  statusEl.textContent = 'Location set from map. Checking conditions...';
+});
+
+// If the coords box already has a value (e.g. loaded from a saved farm),
+// reflect it on the map too
+function syncMapFromCoordsInput() {
+  const parsed = parseCoords(coordsInput.value);
+  if (parsed) setMarker(parsed.lat, parsed.lon, true);
+}
+
+// Address search using Google's Geocoding service (same API key as the map)
+const geocoder = new google.maps.Geocoder();
+
+function searchAddress() {
+  const query = addressSearchInput.value.trim();
+  if (!query) {
+    statusEl.textContent = 'Type an address or place name to search.';
+    return;
+  }
+  statusEl.textContent = 'Searching...';
+  geocoder.geocode(
+    { address: query, region: 'nz', componentRestrictions: { country: 'NZ' } },
+    (results, status) => {
+      if (status !== 'OK' || !results.length) {
+        statusEl.textContent = `No results found for "${query}".`;
+        return;
+      }
+      const loc = results[0].geometry.location;
+      updateCoordsFromMap(loc.lat(), loc.lng());
+      map.setCenter(loc);
+      map.setZoom(15);
+      statusEl.textContent = `Found "${results[0].formatted_address}". Checking conditions...`;
+    }
+  );
+}
+
+searchBtn.addEventListener('click', searchAddress);
+addressSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') searchAddress(); });
+const statusEl = document.getElementById('status');
+const resultContainer = document.getElementById('resultContainer');
+const savedSelect = document.getElementById('savedSelect');
+const farmNameInput = document.getElementById('farmName');
+const fieldCapacityInput = document.getElementById('fieldCapacityInput');
+const rootZoneInput = document.getElementById('rootZoneInput');
+const soilTypeSelect = document.getElementById('soilTypeSelect');
+
+// Rough presets for when exact S-map data isn't on hand. Field capacity %
+// and root zone mm — deliberately approximate, meant as a better-than-default
+// starting point, not a substitute for an actual S-map lookup.
+const SOIL_TYPE_PRESETS = {
+  light:  { fieldCapacityPercent: 20, rootZoneMm: 300 },  // sandy/stony, low water-holding capacity
+  medium: { fieldCapacityPercent: 28, rootZoneMm: 350 },
+  heavy:  { fieldCapacityPercent: 38, rootZoneMm: 400 },  // silt/clay, higher water-holding capacity
+};
+
+const customSoilFields = document.getElementById('customSoilFields');
+const manualSoilInputs = document.getElementById('manualSoilInputs');
+
+function applySoilOverrideAndRefresh() {
+  const fcPercent = parseFloat(fieldCapacityInput.value);
+  const rootZone = parseFloat(rootZoneInput.value);
+  currentFieldCapacityVwc = !isNaN(fcPercent) ? fcPercent / 100 : null;
+  currentRootZoneDepthMm = !isNaN(rootZone) ? rootZone : null;
+  if (parseCoords(coordsInput.value)) runCheck();
+}
+
+soilTypeSelect.addEventListener('change', async () => {
+  const parsed = parseCoords(coordsInput.value);
+
+  if (soilTypeSelect.value === '') {
+    // Back to default: hide the manual number inputs, re-run S-map lookup
+    manualSoilInputs.style.display = 'none';
+    fieldCapacityInput.value = '';
+    rootZoneInput.value = '';
+    if (parsed) {
+      await autoApplySmapLookup(parsed.lat, parsed.lon);
+      runCheck();
+    }
+    return;
+  }
+
+  manualSoilInputs.style.display = '';
+  smapResultDiv.innerHTML = '';
+
+  if (soilTypeSelect.value === 'custom') {
+    fieldCapacityInput.value = '';
+    rootZoneInput.value = '';
+    applySoilOverrideAndRefresh();
+    return;
+  }
+
+  const preset = SOIL_TYPE_PRESETS[soilTypeSelect.value];
+  if (preset) {
+    fieldCapacityInput.value = preset.fieldCapacityPercent;
+    rootZoneInput.value = preset.rootZoneMm;
+  } else {
+    fieldCapacityInput.value = '';
+    rootZoneInput.value = '';
+  }
+  applySoilOverrideAndRefresh();
+});
+
+fieldCapacityInput.addEventListener('change', applySoilOverrideAndRefresh);
+rootZoneInput.addEventListener('change', applySoilOverrideAndRefresh);
+const saveBtn = document.getElementById('saveBtn');
+const notifyBtn = document.getElementById('notifyBtn');
+const notifyEmailInput = document.getElementById('notifyEmail');
+
+// Paste your Apps Script web app URL here (ends in /exec)
+const APPS_SCRIPT_URL = 'APPS_SCRIPT_URL_PLACEHOLDER';
+const STORAGE_KEY = 'springNCheckSavedFarms';
+
+function loadSavedFarms() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function persistSavedFarms(farms) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(farms));
+}
+
+function refreshSavedSelect() {
+  const farms = loadSavedFarms();
+  savedSelect.innerHTML = '<option value="">— Select a saved farm —</option>';
+  Object.keys(farms).sort().forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${name} (${farms[name].lat.toFixed(4)}, ${farms[name].lon.toFixed(4)})`;
+    savedSelect.appendChild(opt);
+  });
+}
+
+savedSelect.addEventListener('change', async () => {
+  if (!savedSelect.value) return;
+  const farms = loadSavedFarms();
+  const f = farms[savedSelect.value];
+  if (f) {
+    coordsInput.value = `${f.lat}, ${f.lon}`;
+    setMarker(f.lat, f.lon, true);
+    farmNameInput.value = savedSelect.value;
+    if (f.fieldCapacityVwc != null || f.rootZoneDepthMm != null) {
+      // This farm already has a saved override — trust it, don't re-lookup
+      fieldCapacityInput.value = (f.fieldCapacityVwc != null) ? (f.fieldCapacityVwc * 100) : '';
+      rootZoneInput.value = f.rootZoneDepthMm != null ? f.rootZoneDepthMm : '';
+      soilTypeSelect.value = 'custom';
+      manualSoilInputs.style.display = '';
+      currentFieldCapacityVwc = f.fieldCapacityVwc != null ? f.fieldCapacityVwc : null;
+      currentRootZoneDepthMm = f.rootZoneDepthMm != null ? f.rootZoneDepthMm : null;
+      smapResultDiv.innerHTML = '<p style="font-size:12px; color:#8a8068; margin-top:8px;">Using this farm\'s saved soil values.</p>';
+    } else {
+      // No saved override — fall back to default S-map auto-lookup
+      fieldCapacityInput.value = '';
+      rootZoneInput.value = '';
+      soilTypeSelect.value = '';
+      manualSoilInputs.style.display = 'none';
+      currentFieldCapacityVwc = null;
+      currentRootZoneDepthMm = null;
+      await autoApplySmapLookup(f.lat, f.lon);
+    }
+    updateNotifyButtonText();
+    statusEl.textContent = `Loaded "${savedSelect.value}". Checking conditions...`;
+    runCheck();
+  }
+});
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function submitSubscription(name, lat, lon, email) {
+  // Apps Script's response often doesn't include proper cross-origin
+  // headers, which makes the browser refuse to let JS read the response
+  // (shows up as "Failed to fetch") even though the request itself goes
+  // through and gets saved server-side. Using no-cors mode avoids needing
+  // to read the response at all — we just confirm the request was sent.
+  await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      name, lat, lon, email,
+      fieldCapacityVwc: currentFieldCapacityVwc,
+      rootZoneDepthMm: currentRootZoneDepthMm
+    })
+  });
+  // no-cors gives an "opaque" response we can't inspect, so we can't check
+  // result.ok here — if the fetch itself didn't throw, assume it worked.
+}
+
+saveBtn.addEventListener('click', () => {
+  const name = farmNameInput.value.trim();
+  const parsed = parseCoords(coordsInput.value);
+  if (!name) {
+    statusEl.textContent = 'Enter a name to save this location.';
+    return;
+  }
+  if (!parsed) {
+    statusEl.textContent = 'Enter valid coordinates before saving.';
+    return;
+  }
+  const farms = loadSavedFarms();
+  const fcPercent = parseFloat(fieldCapacityInput.value);
+  const rootZone = parseFloat(rootZoneInput.value);
+  farms[name] = {
+    lat: parsed.lat,
+    lon: parsed.lon,
+    fieldCapacityVwc: !isNaN(fcPercent) ? fcPercent / 100 : null,
+    rootZoneDepthMm: !isNaN(rootZone) ? rootZone : null
+  };
+  persistSavedFarms(farms);
+  refreshSavedSelect();
+  savedSelect.value = name;
+  statusEl.textContent = `Saved "${name}" on this phone.`;
+});
+
+let currentLocality = '';
+
+function updateNotifyButtonText() {
+  const name = farmNameInput.value.trim() || currentLocality || 'this location';
+  notifyBtn.textContent = `Let me know when it's time to go at ${name}`;
+}
+
+function reverseGeocodeLocality(lat, lon) {
+  geocoder.geocode({ location: { lat, lng: lon } }, (results, status) => {
+    if (status !== 'OK' || !results.length) {
+      currentLocality = '';
+      updateNotifyButtonText();
+      return;
+    }
+    // Prefer locality, fall back to broader area names if unavailable
+    const preferredTypes = ['locality', 'sublocality', 'administrative_area_level_2', 'administrative_area_level_1'];
+    let found = '';
+    for (const type of preferredTypes) {
+      for (const result of results) {
+        const comp = result.address_components.find(c => c.types.includes(type));
+        if (comp) { found = comp.long_name; break; }
+      }
+      if (found) break;
+    }
+    currentLocality = found;
+    updateNotifyButtonText();
+  });
+}
+
+farmNameInput.addEventListener('input', updateNotifyButtonText);
+updateNotifyButtonText();
+
+notifyBtn.addEventListener('click', async () => {
+  const name = farmNameInput.value.trim();
+  const parsed = parseCoords(coordsInput.value);
+  const email = notifyEmailInput.value.trim();
+
+  if (!name) {
+    statusEl.textContent = 'Enter a farm name above before setting up notifications.';
+    return;
+  }
+  if (!parsed) {
+    statusEl.textContent = 'Set a location on the map before setting up notifications.';
+    return;
+  }
+  if (!isValidEmail(email)) {
+    statusEl.textContent = 'Enter a valid email address for notifications.';
+    return;
+  }
+
+  if (!APPS_SCRIPT_URL.startsWith('https://')) {
+    statusEl.textContent = 'Notification service not configured yet.';
+    return;
+  }
+
+  statusEl.textContent = 'Setting up notification...';
+  try {
+    await submitSubscription(name, parsed.lat, parsed.lon, email);
+    statusEl.textContent = `You'll get an email at ${email} when conditions are met at "${name}".`;
+  } catch (e) {
+    statusEl.textContent = `Could not set up notification: ${e.message}`;
+  }
+});
+
+refreshSavedSelect();
+
+function locateAndPlacePin() {
+  if (!navigator.geolocation) {
+    statusEl.textContent = 'GPS not available on this device/browser. Use the search box or tap the map to set a location.';
+    return;
+  }
+  statusEl.textContent = 'Getting your location...';
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lon = pos.coords.longitude.toFixed(6);
+      coordsInput.value = `${lat}, ${lon}`;
+      setMarker(parseFloat(lat), parseFloat(lon), true);
+      reverseGeocodeLocality(parseFloat(lat), parseFloat(lon));
+      statusEl.textContent = 'Pin set to your current location. Checking conditions...';
+      await autoApplySmapLookup(parseFloat(lat), parseFloat(lon));
+      runCheck();
+    },
+    (err) => {
+      statusEl.textContent = 'Could not get your location automatically — use the search box or tap the map to set one.';
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+locateAndPlacePin();
+
+// "Locate me" control button, overlaid on the map (standard Google Maps UX pattern)
+function addLocateMeControl() {
+  const controlDiv = document.createElement('div');
+  controlDiv.style.margin = '10px';
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.title = 'Use my current location';
+  button.style.background = '#fff';
+  button.style.border = 'none';
+  button.style.borderRadius = '8px';
+  button.style.width = '40px';
+  button.style.height = '40px';
+  button.style.cursor = 'pointer';
+  button.style.display = 'flex';
+  button.style.alignItems = 'center';
+  button.style.justifyContent = 'center';
+  button.style.padding = '0';
+  button.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+  button.innerHTML = `
+    <svg width="22" height="22" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="#4285F4" opacity="0.18" />
+      <circle cx="12" cy="12" r="5.5" fill="#4285F4" />
+      <circle cx="12" cy="12" r="5.5" fill="none" stroke="#fff" stroke-width="1.5" />
+    </svg>
+  `;
+
+  button.addEventListener('click', () => {
+    locateAndPlacePin();
+  });
+
+  controlDiv.appendChild(button);
+  map.controls[google.maps.ControlPosition.RIGHT_TOP].push(controlDiv);
+}
+
+addLocateMeControl();
+
+function interpolate10cm(t6, t18, weight = 0.333) {
+  return t6 + (t18 - t6) * weight;
+}
+
+function parseCoords(raw) {
+  const parts = raw.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length !== 2 || parts.some(isNaN)) return null;
+  const [lat, lon] = parts;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+  return { lat, lon };
+}
+
+function getGddStartDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  let start = new Date(`${year}-${GDD_START_MONTH_DAY}T00:00:00`);
+  if (start > today) start = new Date(`${year - 1}-${GDD_START_MONTH_DAY}T00:00:00`);
+  return start;
+}
+
+const CLIMATOLOGY_YEARS = 10;
+// Window wide enough to safely capture a growth-start crossing in most
+// years, even an early or late one — 1 July through 31 August.
+const CLIMATOLOGY_WINDOW_START_MD = '07-01';
+const CLIMATOLOGY_WINDOW_END_MD = '08-31';
+
+async function getYearSoilTempSeries(lat, lon, year, startMD, endMD) {
+  // Fetches one historical year's daily mean 10cm soil temp across the
+  // given month-day window, using the Archive API's depth-band variables
+  // interpolated the same way as the rest of this tool.
+  const startDate = `${year}-${startMD}`;
+  const endDate = `${year}-${endMD}`;
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&hourly=soil_temperature_0_to_7cm,soil_temperature_7_to_28cm&timezone=Pacific%2FAuckland`;
+  const resp = await fetch(url);
+  if (!resp.ok) return [];
+  const data = await resp.json();
+  const times = data.hourly.time;
+  const tShallow = data.hourly.soil_temperature_0_to_7cm;
+  const tDeep = data.hourly.soil_temperature_7_to_28cm;
+  const weight = (10 - 3.5) / (17.5 - 3.5);
+
+  const dailyGroups = {};
+  const nineAmByDay = {};
+  for (let i = 0; i < times.length; i++) {
+    if (tShallow[i] == null || tDeep[i] == null) continue;
+    const day = times[i].slice(0, 10);
+    const temp10 = tShallow[i] + (tDeep[i] - tShallow[i]) * weight;
+    if (!dailyGroups[day]) dailyGroups[day] = [];
+    dailyGroups[day].push(temp10);
+    if (times[i].endsWith('T09:00')) nineAmByDay[day] = temp10;
+  }
+  return Object.keys(dailyGroups).sort().map(d => ({
+    date: d,
+    mean: dailyGroups[d].reduce((a, b) => a + b, 0) / dailyGroups[d].length,
+    nineAm: nineAmByDay[d] != null ? nineAmByDay[d] : null
+  }));
+}
+
+function findGrowthStartDate(series) {
+  // 9am rule (Ballance): first date where the 9am reading is >=7C AND
+  // higher than the previous day's 9am reading. This test variant
+  // replaces Frame's 5-day daily-mean rule used in the production tool.
+  for (let i = 1; i < series.length; i++) {
+    const today9am = series[i].nineAm;
+    const yesterday9am = series[i - 1].nineAm;
+    if (today9am == null || yesterday9am == null) continue;
+    if (today9am >= SOIL_TEMP_THRESHOLD_C && today9am > yesterday9am) {
+      const d = new Date(series[i].date + 'T00:00:00');
+      const yearStart = new Date(d.getFullYear(), 0, 0);
+      const dayOfYear = Math.floor((d - yearStart) / 86400000);
+      return { date: series[i].date, dayOfYear };
+    }
+  }
+  return null;
+}
+
+async function getTenYearClimatology(lat, lon, displayDates) {
+  // Fetches the last CLIMATOLOGY_YEARS years of data for this location.
+  // Used for two things: (1) a 10-year-average overlay on the soil temp
+  // chart, for the same calendar dates currently displayed, and (2) a
+  // climatological "typical" growth-start date, by finding when the
+  // threshold was actually crossed in each historical year and averaging
+  // those dates — a much more statistically meaningful benchmark than any
+  // single prior year.
+  //
+  // The chart overlay needs to cover whatever dates are CURRENTLY being
+  // displayed (which could be any time of year), while the crossing-date
+  // search is deliberately restricted to CLIMATOLOGY_WINDOW (e.g. Jul-Aug).
+  // These two needs don't always overlap, so each year's fetch covers the
+  // union of both ranges in one request, then the crossing search slices
+  // out just the fixed window before checking.
+  const currentYear = new Date().getFullYear();
+
+  // Month-day strings compare correctly as plain strings (both "MM-DD").
+  const displayMDs = displayDates.map(d => d.slice(5));
+  const fetchStartMD = [CLIMATOLOGY_WINDOW_START_MD, ...displayMDs].sort()[0];
+  const fetchEndMD = [CLIMATOLOGY_WINDOW_END_MD, ...displayMDs].sort().slice(-1)[0];
+
+  const yearSeries = [];
+
+  for (let i = 1; i <= CLIMATOLOGY_YEARS; i++) {
+    try {
+      const series = await getYearSoilTempSeries(lat, lon, currentYear - i, fetchStartMD, fetchEndMD);
+      if (series.length) yearSeries.push(series);
+    } catch (e) {
+      // skip a year that fails to fetch; the average just uses what's available
+    }
+  }
+
+  if (!yearSeries.length) return { avgSeries: [], typicalCrossing: null };
+
+  // --- Build the avg overlay for the displayed chart dates ---
+  const avgSeries = displayDates.map(displayDate => {
+    const md = displayDate.slice(5); // "MM-DD"
+    const valuesForThisDate = yearSeries
+      .map(series => series.find(d => d.date.slice(5) === md))
+      .filter(d => d != null)
+      .map(d => d.mean);
+    const mean = valuesForThisDate.length
+      ? valuesForThisDate.reduce((a, b) => a + b, 0) / valuesForThisDate.length
+      : null;
+    return { date: displayDate, mean };
+  });
+
+  // --- Find each year's actual growth-start date, restricted to the fixed
+  // crossing-search window (e.g. Jul-Aug), even though the fetch above may
+  // have pulled a wider range to also cover the chart overlay ---
+  const crossingWindowSeries = yearSeries.map(series =>
+    series.filter(d => {
+      const md = d.date.slice(5);
+      return md >= CLIMATOLOGY_WINDOW_START_MD && md <= CLIMATOLOGY_WINDOW_END_MD;
+    })
+  );
+  const crossings = crossingWindowSeries.map(findGrowthStartDate).filter(c => c != null);
+  let typicalCrossing = null;
+  if (crossings.length) {
+    const avgDayOfYear = Math.round(
+      crossings.reduce((a, c) => a + c.dayOfYear, 0) / crossings.length
+    );
+    const typicalDate = new Date(currentYear, 0, avgDayOfYear);
+    typicalCrossing = {
+      monthDay: toDDMM(typicalDate.toISOString().slice(0, 10)),
+      yearsUsed: crossings.length,
+      yearsTotal: yearSeries.length
+    };
+  }
+
+  return { avgSeries, typicalCrossing };
+}
+
+function categorizeSoilMoisture(vwc) {
+  // vwc = volumetric water content, m3/m3. These are rough general bands,
+  // not soil-type-specific — Canterbury's shallow stony soils saturate at
+  // lower absolute values than deep silt/clay soils, so treat as a guide.
+  if (vwc < 0.15) return 'Dry';
+  if (vwc < 0.25) return 'Moist';
+  if (vwc < 0.35) return 'Wet';
+  return 'Saturated';
+}
+
+// S-map lookup via Environment Canterbury's public ArcGIS service. Provides
+// AWmm30 — available water capacity (mm) over a 300mm depth, i.e. the SIZE
+// of the soil's water "tank" — not how full it currently is (that still
+// comes from Open-Meteo). Converting AW to an equivalent field capacity %
+// needs a wilting point assumption, since AW = field capacity - wilting
+// point; this uses a generic 10% VWC wilting point assumption (reasonable
+// for most NZ topsoils, but a genuine approximation, not measured).
+const SMAP_SERVICE_URL = 'https://gis.ecan.govt.nz/arcgis/rest/services/Public/Landcare_SMap_Layers/MapServer/5/query';
+const ASSUMED_WILTING_POINT_VWC = 0.10;
+
+async function lookupSmapData(lat, lon) {
+  const params = new URLSearchParams({
+    geometry: `${lon},${lat}`,
+    geometryType: 'esriGeometryPoint',
+    inSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    outFields: 'AWmm30,AWmm60,PAWmm,SiblingTexture_Desc,SiblingDrainageCode_Desc,RelativeNLeachRisk,LongSoilName',
+    returnGeometry: 'false',
+    f: 'json'
+  });
+  const resp = await fetch(`${SMAP_SERVICE_URL}?${params.toString()}`);
+  if (!resp.ok) throw new Error('S-map service returned an error.');
+  const data = await resp.json();
+  if (!data.features || data.features.length === 0) {
+    return { found: false };
+  }
+  const attrs = data.features[0].attributes;
+  const suggestedFieldCapacityVwc = ASSUMED_WILTING_POINT_VWC + (attrs.AWmm30 / ROOT_ZONE_DEPTH_MM);
+  return {
+    found: true,
+    soilName: attrs.LongSoilName,
+    texture: attrs.SiblingTexture_Desc,
+    drainage: attrs.SiblingDrainageCode_Desc,
+    awMm30: attrs.AWmm30,
+    nLeachRisk: attrs.RelativeNLeachRisk,
+    suggestedFieldCapacityPercent: Math.round(suggestedFieldCapacityVwc * 100)
+  };
+}
+
+const smapResultDiv = document.getElementById('smapResult');
+
+async function autoApplySmapLookup(lat, lon) {
+  // Runs automatically whenever a location is set, IF the soil type dropdown
+  // is on its default "S-map (auto)" setting — manual overrides (light/
+  // medium/heavy/custom) are left alone rather than silently replaced.
+  if (soilTypeSelect.value !== '') return;
+
+  smapResultDiv.innerHTML = '<p style="font-size:12px; color:#8a8068; margin-top:8px;">Looking up S-map data...</p>';
+  try {
+    const result = await lookupSmapData(lat, lon);
+    if (!result.found) {
+      smapResultDiv.innerHTML = '<p style="font-size:12px; color:#b5562f; margin-top:8px;">No S-map coverage at this exact point — ECan is still expanding coverage. Using the generic default (30% field capacity, 300mm root zone) instead. Try a soil type preset, or type your own values, if you know this paddock\'s soil better.</p>';
+      const soilDetails = document.getElementById('soilSettingsDetails');
+      if (soilDetails) soilDetails.open = true;
+      return;
+    }
+    fieldCapacityInput.value = result.suggestedFieldCapacityPercent;
+    rootZoneInput.value = ROOT_ZONE_DEPTH_MM;
+    currentFieldCapacityVwc = result.suggestedFieldCapacityPercent / 100;
+    currentRootZoneDepthMm = ROOT_ZONE_DEPTH_MM;
+    smapResultDiv.innerHTML = `
+      <div style="margin-top:8px; padding:10px; background:#f1ecdf; border:1px solid #c9c0a8; font-size:12px; line-height:1.6;">
+        <strong>${result.soilName || 'Unnamed soil unit'}</strong> (S-map)<br>
+        Texture: ${result.texture || 'n/a'} &middot; Drainage: ${result.drainage || 'n/a'}<br>
+        Available water (300mm): ${result.awMm30 != null ? result.awMm30.toFixed(0) + 'mm' : 'n/a'}<br>
+        N leaching risk rating: ${result.nLeachRisk || 'n/a'}<br>
+        <br>
+        Field capacity used: <strong>${result.suggestedFieldCapacityPercent}%</strong> &middot; Root zone: <strong>${ROOT_ZONE_DEPTH_MM}mm</strong>
+        (field capacity estimated from S-map's available water figure plus an assumed wilting point — pick a preset or "Custom" above if you know better for this paddock)
+      </div>
+    `;
+  } catch (e) {
+    smapResultDiv.innerHTML = `<p style="font-size:12px; color:#b5562f; margin-top:8px;">S-map lookup failed (${e.message}) — using the generic default instead.</p>`;
+  }
+}
+
+async function getSoilMoisture(lat, lon, rootZoneDepthMmOverride, fieldCapacityVwcOverride) {
+  // Open-Meteo's soil moisture comes in depth bands: 0-7cm, 7-28cm, 28-100cm.
+  // Defaults to the generic ROOT_ZONE_DEPTH_MM / FIELD_CAPACITY_VWC
+  // assumptions, but accepts per-farm overrides (e.g. from an S-map
+  // factsheet lookup) for a more accurate result on a specific paddock.
+  const rootZoneDepthMm = rootZoneDepthMmOverride || ROOT_ZONE_DEPTH_MM;
+  const fieldCapacityVwc = (fieldCapacityVwcOverride != null) ? fieldCapacityVwcOverride : FIELD_CAPACITY_VWC;
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm&past_days=1&forecast_days=1&timezone=Pacific%2FAuckland`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Soil moisture service returned an error.');
+  const data = await resp.json();
+  const l1 = data.hourly.soil_moisture_0_to_7cm;
+  const l2 = data.hourly.soil_moisture_7_to_28cm;
+  const l3 = data.hourly.soil_moisture_28_to_100cm;
+
+  let lastIdx = -1;
+  for (let i = l1.length - 1; i >= 0; i--) {
+    if (l1[i] != null && l2[i] != null && l3[i] != null) { lastIdx = i; break; }
+  }
+  if (lastIdx === -1) throw new Error('No soil moisture data available.');
+
+  const rootZoneDepthCm = rootZoneDepthMm / 10;
+  const w1 = Math.min(7, rootZoneDepthCm);
+  const w2 = Math.min(21, Math.max(0, rootZoneDepthCm - 7));
+  const w3 = Math.max(0, rootZoneDepthCm - 28);
+
+  const rootZoneVwc = (w1 * l1[lastIdx] + w2 * l2[lastIdx] + w3 * l3[lastIdx]) / rootZoneDepthCm;
+  const deficitMm = Math.max(0, (fieldCapacityVwc - rootZoneVwc) * rootZoneDepthMm);
+
+  return {
+    vwc: rootZoneVwc,
+    category: categorizeSoilMoisture(rootZoneVwc),
+    deficitMm: deficitMm
+  };
+}
+
+async function getPredictedGrowthDate(lat, lon, alreadyStarted) {
+  // Projects soil temp forward (Open-Meteo forecasts out to 16 days) to
+  // estimate roughly when the 9am>=7C-and-rising threshold will likely be
+  // crossed, if it hasn't already. This is soil-temp-only — rain forecasts
+  // that far out aren't reliable enough to fold into this estimate, so the
+  // actual go/hold-off call still needs rechecking nearer the date.
+  if (alreadyStarted) return { status: 'already_started' };
+
+  const forecastHorizonDays = 14;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=soil_temperature_6cm,soil_temperature_18cm&past_days=7&forecast_days=${forecastHorizonDays}&timezone=Pacific%2FAuckland`;
+  const resp = await fetch(url);
+  if (!resp.ok) return { status: 'unavailable' };
+  const data = await resp.json();
+  const times = data.hourly.time;
+  const t6 = data.hourly.soil_temperature_6cm;
+  const t18 = data.hourly.soil_temperature_18cm;
+
+  const nineAmByDay = {};
+  for (let i = 0; i < times.length; i++) {
+    if (times[i].endsWith('T09:00')) {
+      const day = times[i].slice(0, 10);
+      nineAmByDay[day] = interpolate10cm(t6[i], t18[i]);
+    }
+  }
+  const days = Object.keys(nineAmByDay).sort();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayIdx = days.indexOf(todayStr);
+
+  // Walk forward from today, checking the 9am>=7C-and-rising rule day by day
+  // across the combined past+forecast series.
+  for (let i = Math.max(todayIdx + 1, 1); i < days.length; i++) {
+    const today9am = nineAmByDay[days[i]];
+    const yesterday9am = nineAmByDay[days[i - 1]];
+    if (today9am >= SOIL_TEMP_THRESHOLD_C && today9am > yesterday9am) {
+      const daysAway = i - todayIdx;
+      return { status: 'predicted', date: days[i], daysAway: daysAway };
+    }
+  }
+
+  return { status: 'beyond_horizon', horizonDays: forecastHorizonDays };
+}
+
+async function getSoilTempStatus(lat, lon) {
+  const today = new Date();
+  const gddStart = getGddStartDate();
+  const daysSinceStart = Math.ceil((today - gddStart) / 86400000) + 2; // +2 buffer for API lag
+  const pastDays = Math.min(daysSinceStart, 92);
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=soil_temperature_6cm,soil_temperature_18cm&past_days=${pastDays}&forecast_days=1&timezone=Pacific%2FAuckland`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('Soil temp service returned an error.');
+  const data = await resp.json();
+
+  const times = data.hourly.time;
+  const t6 = data.hourly.soil_temperature_6cm;
+  const t18 = data.hourly.soil_temperature_18cm;
+
+  // Group into daily means
+  const dailyGroups = {};
+  for (let i = 0; i < times.length; i++) {
+    const day = times[i].slice(0, 10);
+    const temp10 = interpolate10cm(t6[i], t18[i]);
+    if (!dailyGroups[day]) dailyGroups[day] = [];
+    dailyGroups[day].push(temp10);
+  }
+  const days = Object.keys(dailyGroups).sort();
+  const dailyMeans = days.map(d => {
+    const vals = dailyGroups[d];
+    return { date: d, mean: vals.reduce((a, b) => a + b, 0) / vals.length };
+  });
+
+  // --- 9am rule (Ballance): latest 9am reading >=7C AND higher than the
+  // previous day's 9am reading. This replaces Frame's 5-day daily-mean
+  // rule used in the production version of this tool — kept as a
+  // side-by-side test variant, not a replacement for the main logic.
+  const nineAmByDay = {};
+  for (let i = 0; i < times.length; i++) {
+    if (times[i].endsWith('T09:00')) {
+      const day = times[i].slice(0, 10);
+      nineAmByDay[day] = interpolate10cm(t6[i], t18[i]);
+    }
+  }
+  const nineAmDays = Object.keys(nineAmByDay).sort();
+  if (nineAmDays.length < 2) {
+    throw new Error('Not enough 9am data to assess growth status.');
+  }
+  const latestNineAm = nineAmByDay[nineAmDays[nineAmDays.length - 1]];
+  const previousNineAm = nineAmByDay[nineAmDays[nineAmDays.length - 2]];
+  const isRising = latestNineAm > previousNineAm;
+  const growthStarted = latestNineAm >= SOIL_TEMP_THRESHOLD_C && isRising;
+  const consecutive = growthStarted ? 1 : 0; // not meaningful under this rule; kept for display compatibility
+
+  // GDD accumulation from gddStart (still based on daily mean, informational only)
+  const gddStartStr = gddStart.toISOString().slice(0, 10);
+  let accumulatedGdd = 0;
+  for (const { date, mean } of dailyMeans) {
+    if (date >= gddStartStr && mean > GDD_BASE_TEMP_C) {
+      accumulatedGdd += (mean - GDD_BASE_TEMP_C);
+    }
+  }
+  const likelyStrongGrowth = accumulatedGdd >= GDD_THRESHOLD_20KGDM;
+
+  return {
+    recentTemp: latestNineAm,
+    asOf: nineAmDays[nineAmDays.length - 1],
+    consecutiveDays: consecutive,
+    growthStarted,
+    isRising,
+    accumulatedGdd,
+    likelyStrongGrowth,
+    dailyMeans: dailyMeans.slice(-7) // cap chart to last 7 days (still daily mean, for visual reference only)
+  };
+}
+
+function fillMissingDays(dailyTotals, days) {
+  const today = new Date();
+  const result = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    result.push({ date: dateStr, mm: dailyTotals[dateStr] || 0 });
+  }
+  return result;
+}
+
+async function getRainForecast5Day(lat, lon) {
+  // yr.no's API blocks direct browser requests (no CORS headers, and browsers
+  // won't let JS set a custom User-Agent), so this only works reliably from a
+  // server (see monitor.py). In-browser, fall back to Open-Meteo's ECMWF model,
+  // which tracks closer to yr.no than Open-Meteo's default blended model.
+  try {
+    const yrUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat}&lon=${lon}`;
+    const resp = await fetch(yrUrl);
+    if (!resp.ok) throw new Error('yr.no blocked');
+    const data = await resp.json();
+    const series = data.properties.timeseries;
+    let total = 0, hours = 0;
+    const targetHours = RAIN_FORECAST_DAYS * 24;
+    const dailyTotals = {};
+    for (const entry of series) {
+      const precip = entry?.data?.next_6_hours?.details?.precipitation_amount;
+      if (precip !== undefined) {
+        total += precip;
+        hours += 6;
+        const day = entry.time.slice(0, 10);
+        dailyTotals[day] = (dailyTotals[day] || 0) + precip;
+      }
+      if (hours >= targetHours) break;
+    }
+    const breakdown = fillMissingDays(dailyTotals, RAIN_FORECAST_DAYS);
+    return { mm: total, source: 'yr.no', breakdown };
+  } catch (e) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation&forecast_days=${RAIN_FORECAST_DAYS}&models=ecmwf_ifs025&timezone=Pacific%2FAuckland`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('Rain forecast services unavailable.');
+    const data = await resp.json();
+    const dailyTotals = {};
+    data.hourly.time.forEach((t, i) => {
+      const day = t.slice(0, 10);
+      dailyTotals[day] = (dailyTotals[day] || 0) + data.hourly.precipitation[i];
+    });
+    const breakdown = fillMissingDays(dailyTotals, RAIN_FORECAST_DAYS);
+    const total = breakdown.reduce((sum, d) => sum + d.mm, 0);
+    return { mm: total, source: 'Open-Meteo (ECMWF, yr.no unavailable in-browser)', breakdown };
+  }
+}
+
+let checkRequestId = 0;
+
+async function runCheck() {
+  const parsed = parseCoords(coordsInput.value);
+  if (!parsed) {
+    statusEl.textContent = 'Set a location by tapping the map or searching above.';
+    resultContainer.innerHTML = '';
+    return;
+  }
+
+  // Rather than dropping a check that overlaps with one already in flight
+  // (which could leave a later selection's data never displayed), tag each
+  // call with an ID and only let the LATEST one actually render its result.
+  const myRequestId = ++checkRequestId;
+
+  statusEl.textContent = 'Fetching soil temp and rain forecast...';
+  resultContainer.innerHTML = '';
+
+  try {
+    const [soilStatus, rain, soilMoisture] = await Promise.all([
+      getSoilTempStatus(parsed.lat, parsed.lon),
+      getRainForecast5Day(parsed.lat, parsed.lon),
+      getSoilMoisture(parsed.lat, parsed.lon, currentRootZoneDepthMm, currentFieldCapacityVwc).catch(() => null), // informational only; fail quietly
+    ]);
+
+    const predictedGrowthDate = await getPredictedGrowthDate(parsed.lat, parsed.lon, soilStatus.growthStarted).catch(() => ({ status: 'unavailable' }));
+
+    const climatology = await getTenYearClimatology(parsed.lat, parsed.lon, soilStatus.dailyMeans.map(d => d.date));
+
+    if (myRequestId !== checkRequestId) return; // a newer check has since started; discard this stale result
+
+    const rainThresholdMm = soilMoisture
+      ? soilMoisture.deficitMm + RAIN_SAFETY_MARGIN_MM
+      : 40.0; // fallback flat threshold if soil moisture data wasn't available
+    const conditionsMet = soilStatus.growthStarted && rain.mm < rainThresholdMm;
+
+    renderResult({
+      temp10: soilStatus.recentTemp,
+      consecutiveDays: soilStatus.consecutiveDays,
+      growthStarted: soilStatus.growthStarted,
+      isRising: soilStatus.isRising,
+      accumulatedGdd: soilStatus.accumulatedGdd,
+      likelyStrongGrowth: soilStatus.likelyStrongGrowth,
+      dailyMeans: soilStatus.dailyMeans,
+      climatologyAvg: climatology.avgSeries,
+      typicalCrossing: climatology.typicalCrossing,
+      rainForecast: rain.mm,
+      rainSource: rain.source,
+      rainBreakdown: rain.breakdown,
+      soilMoisture: soilMoisture,
+      rainThresholdMm: rainThresholdMm,
+      predictedGrowthDate: predictedGrowthDate,
+      conditionsMet,
+      asOf: soilStatus.asOf
+    });
+
+    statusEl.textContent = '';
+  } catch (e) {
+    if (myRequestId !== checkRequestId) return; // stale error from a superseded check; ignore
+    statusEl.textContent = 'Error: ' + e.message + ' | Stack: ' + (e.stack || 'n/a').split('\n').slice(0, 3).join(' >> ');
+  }
+}
+
+function toDDMM(dateStr) {
+  // dateStr is "YYYY-MM-DD"; convert to NZ-style "DD/MM"
+  const parts = dateStr.split('-');
+  return `${parts[2]}/${parts[1]}`;
+}
+
+function computeDeficitProjection(startingDeficitMm, rainBreakdown) {
+  // Simple running model: each day's forecast rain reduces the deficit,
+  // floored at 0 (soil can't go below "full" / field capacity in this model).
+  // Doesn't account for evapotranspiration pulling the deficit back up —
+  // a deliberate simplification, since ET is small relative to rain events
+  // over a 7-day window and adding it would need another data source.
+  let remaining = startingDeficitMm;
+  return rainBreakdown.map(day => {
+    remaining = Math.max(0, remaining - day.mm);
+    return { date: day.date, deficitMm: remaining };
+  });
+}
+
+function drawDeficitChart(projection) {
+  const canvas = document.getElementById('deficitChart');
+  if (!canvas || !projection || projection.length === 0) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 400;
+  const cssHeight = 160;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const padding = { top: 16, right: 12, bottom: 28, left: 38 };
+  const w = cssWidth - padding.left - padding.right;
+  const h = cssHeight - padding.top - padding.bottom;
+
+  const values = projection.map(d => d.deficitMm);
+  const dates = projection.map(d => toDDMM(d.date));
+  const maxVal = Math.max(...values, 10); // floor of 10mm so a flat-zero line still renders sensibly
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.font = '10px monospace';
+
+  // Y axis gridlines + labels
+  const yTicks = 3;
+  ctx.strokeStyle = '#e3dcc6';
+  for (let i = 0; i <= yTicks; i++) {
+    const val = maxVal * i / yTicks;
+    const y = padding.top + h - (h * i / yTicks);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + w, y);
+    ctx.stroke();
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText(val.toFixed(0) + 'mm', 2, y + 3);
+  }
+
+  // Zero line (saturation point — soil at field capacity, any further rain leaches)
+  const zeroY = padding.top + h;
+  ctx.strokeStyle = '#b5562f';
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, zeroY);
+  ctx.lineTo(padding.left + w, zeroY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Deficit line
+  ctx.strokeStyle = '#5c6b3f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  values.forEach((v, i) => {
+    const x = padding.left + (w * i / (values.length - 1));
+    const y = padding.top + h - (h * v / maxVal);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Points + date labels
+  values.forEach((v, i) => {
+    const x = padding.left + (w * i / (values.length - 1));
+    const y = padding.top + h - (h * v / maxVal);
+    ctx.fillStyle = '#5c6b3f';
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#5c5440';
+    ctx.save();
+    ctx.translate(x, padding.top + h + 18);
+    ctx.textAlign = 'center';
+    ctx.fillText(dates[i], 0, 0);
+    ctx.restore();
+  });
+}
+
+function drawCombinedRainDeficitChart(rainBreakdown, deficitProjection) {
+  const canvas = document.getElementById('rainDeficitChart');
+  if (!canvas || !rainBreakdown || rainBreakdown.length === 0) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 400;
+  const cssHeight = 180;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const padding = { top: 20, right: 12, bottom: 28, left: 38 };
+  const w = cssWidth - padding.left - padding.right;
+  const h = cssHeight - padding.top - padding.bottom;
+
+  const rainValues = rainBreakdown.map(d => d.mm);
+  const deficitValues = (deficitProjection || []).map(d => d.deficitMm);
+  const dates = rainBreakdown.map(d => toDDMM(d.date));
+  const maxVal = Math.max(...rainValues, ...deficitValues, 10);
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.font = '10px monospace';
+
+  // Y axis gridlines + labels (shared mm scale for both rain and deficit)
+  const yTicks = 3;
+  ctx.strokeStyle = '#e3dcc6';
+  for (let i = 0; i <= yTicks; i++) {
+    const val = maxVal * i / yTicks;
+    const y = padding.top + h - (h * i / yTicks);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + w, y);
+    ctx.stroke();
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText(val.toFixed(0) + 'mm', 2, y + 3);
+  }
+
+  // Rain bars
+  const n = rainValues.length;
+  const slot = w / n;
+  const barWidth = slot * 0.5;
+  rainValues.forEach((mm, i) => {
+    const barHeight = (mm / maxVal) * h;
+    const x = padding.left + i * slot + (slot - barWidth) / 2;
+    const y = padding.top + h - barHeight;
+    ctx.fillStyle = mm > 0 ? '#9fb4d9' : '#e3dcc6'; // light blue for rain bars
+    ctx.fillRect(x, y, barWidth, Math.max(barHeight, 1));
+  });
+
+  // Deficit line (only if we have a projection)
+  if (deficitValues.length === rainValues.length && deficitValues.length > 0) {
+    ctx.strokeStyle = '#5c6b3f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    deficitValues.forEach((v, i) => {
+      const x = padding.left + i * slot + slot / 2;
+      const y = padding.top + h - (h * v / maxVal);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    deficitValues.forEach((v, i) => {
+      const x = padding.left + i * slot + slot / 2;
+      const y = padding.top + h - (h * v / maxVal);
+      ctx.fillStyle = '#5c6b3f';
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Date labels
+  rainValues.forEach((mm, i) => {
+    const x = padding.left + i * slot + slot / 2;
+    ctx.fillStyle = '#5c5440';
+    ctx.textAlign = 'center';
+    ctx.fillText(dates[i], x, padding.top + h + 18);
+  });
+
+  // Legend
+  ctx.fillStyle = '#9fb4d9';
+  ctx.fillRect(padding.left, 4, 10, 8);
+  ctx.fillStyle = '#5c5440';
+  ctx.textAlign = 'left';
+  ctx.fillText('Rain', padding.left + 14, 11);
+
+  if (deficitValues.length === rainValues.length && deficitValues.length > 0) {
+    ctx.strokeStyle = '#5c6b3f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding.left + 60, 8);
+    ctx.lineTo(padding.left + 74, 8);
+    ctx.stroke();
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText('Soil buffer', padding.left + 78, 11);
+  }
+}
+
+function drawRainChart(breakdown) {
+  const canvas = document.getElementById('rainChart');
+  if (!canvas || !breakdown || breakdown.length === 0) return;
+  const ctx = canvas.getContext('2d');
+
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 400;
+  const cssHeight = 160;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const padding = { top: 20, right: 12, bottom: 28, left: 38 };
+  const w = cssWidth - padding.left - padding.right;
+  const h = cssHeight - padding.top - padding.bottom;
+
+  const mmValues = breakdown.map(d => d.mm);
+  const dates = breakdown.map(d => toDDMM(d.date));
+  const maxMm = Math.max(...mmValues, 1);
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.font = '10px monospace';
+
+  // Y axis gridlines + labels (3 ticks)
+  const yTicks = 3;
+  ctx.strokeStyle = '#e3dcc6';
+  for (let i = 0; i <= yTicks; i++) {
+    const val = (maxMm * i / yTicks);
+    const y = padding.top + h - (h * i / yTicks);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + w, y);
+    ctx.stroke();
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText(val.toFixed(0) + 'mm', 2, y + 3);
+  }
+
+  // Bars
+  const n = mmValues.length;
+  const slot = w / n;
+  const barWidth = slot * 0.6;
+  mmValues.forEach((mm, i) => {
+    const barHeight = (mm / maxMm) * h;
+    const x = padding.left + i * slot + (slot - barWidth) / 2;
+    const y = padding.top + h - barHeight;
+    ctx.fillStyle = mm > 0 ? '#5c6b3f' : '#c9c0a8';
+    ctx.fillRect(x, y, barWidth, Math.max(barHeight, 1));
+
+    // value label above bar
+    ctx.fillStyle = '#1f1c16';
+    ctx.textAlign = 'center';
+    ctx.fillText(mm.toFixed(1), x + barWidth / 2, y - 4);
+
+    // date label below axis
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText(dates[i], x + barWidth / 2, padding.top + h + 18);
+  });
+}
+
+function drawTempChart(dailyReadings, climatologyReadings) {
+  const canvas = document.getElementById('tempChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  // Use actual pixel size matching displayed CSS width for crisp lines
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 400;
+  const cssHeight = 180;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const padding = { top: 16, right: 12, bottom: 28, left: 38 };
+  const w = cssWidth - padding.left - padding.right;
+  const h = cssHeight - padding.top - padding.bottom;
+
+  const temps = dailyReadings.map(d => d.mean);
+  const dates = dailyReadings.map(d => toDDMM(d.date));
+
+  // Climatology series is built aligned by index to the same display dates,
+  // but a given calendar date might have no data in some years — those
+  // come through as null and are skipped when drawing, leaving a gap
+  // rather than a wrong value.
+  const climatologyTemps = (climatologyReadings || []).map(d => d.mean);
+  const hasClimatology = climatologyTemps.some(t => t != null);
+
+  const validClimatologyTemps = climatologyTemps.filter(t => t != null);
+  const allTempsForRange = validClimatologyTemps.length ? temps.concat(validClimatologyTemps) : temps;
+  const minT = Math.min(...allTempsForRange, SOIL_TEMP_THRESHOLD_C) - 0.5;
+  const maxT = Math.max(...allTempsForRange, SOIL_TEMP_THRESHOLD_C) + 0.5;
+  const range = maxT - minT || 1;
+
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.font = '10px monospace';
+  ctx.strokeStyle = '#1f1c16';
+  ctx.fillStyle = '#1f1c16';
+
+  // Y axis gridlines + labels (3 ticks)
+  const yTicks = 3;
+  ctx.strokeStyle = '#e3dcc6';
+  for (let i = 0; i <= yTicks; i++) {
+    const val = minT + (range * i / yTicks);
+    const y = padding.top + h - (h * i / yTicks);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(padding.left + w, y);
+    ctx.stroke();
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText(val.toFixed(1) + '\u00b0', 2, y + 3);
+  }
+
+  // Threshold reference line (6°C)
+  const threshY = padding.top + h - (h * (SOIL_TEMP_THRESHOLD_C - minT) / range);
+  ctx.strokeStyle = '#b5562f';
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(padding.left, threshY);
+  ctx.lineTo(padding.left + w, threshY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 10-year average line (lighter, drawn first so this year's line sits on top)
+  if (hasClimatology) {
+    ctx.strokeStyle = '#bcc9a0'; // light sage, a paler tint of the main green
+    ctx.lineWidth = 2;
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    let started = false;
+    climatologyTemps.forEach((t, i) => {
+      if (t == null) { started = false; return; } // gap — break the line
+      const x = padding.left + (w * i / (climatologyTemps.length - 1));
+      const y = padding.top + h - (h * (t - minT) / range);
+      if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // This year's data line
+  ctx.strokeStyle = '#5c6b3f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  temps.forEach((t, i) => {
+    const x = padding.left + (w * i / (temps.length - 1));
+    const y = padding.top + h - (h * (t - minT) / range);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Data points + x labels
+  ctx.fillStyle = '#5c6b3f';
+  temps.forEach((t, i) => {
+    const x = padding.left + (w * i / (temps.length - 1));
+    const y = padding.top + h - (h * (t - minT) / range);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#5c5440';
+    ctx.save();
+    ctx.translate(x, padding.top + h + 18);
+    ctx.textAlign = 'center';
+    ctx.fillText(dates[i], 0, 0);
+    ctx.restore();
+    ctx.fillStyle = '#5c6b3f';
+  });
+
+  // Legend, only shown when climatology data is actually present
+  if (hasClimatology) {
+    const legendY = padding.top - 2;
+    ctx.fillStyle = '#5c6b3f';
+    ctx.fillRect(padding.left, legendY, 10, 3);
+    ctx.fillStyle = '#5c5440';
+    ctx.textAlign = 'left';
+    ctx.fillText('This year', padding.left + 14, legendY + 4);
+
+    ctx.fillStyle = '#bcc9a0';
+    ctx.fillRect(padding.left + 75, legendY, 10, 3);
+    ctx.fillStyle = '#5c5440';
+    ctx.fillText('10yr avg', padding.left + 89, legendY + 4);
+  }
+}
+
+let detailsWasOpen = false;
+let lastRenderedResult = null;
+
+function drawAllDetailCharts(r) {
+  if (!r) return;
+  drawCombinedRainDeficitChart(
+    r.rainBreakdown,
+    r.soilMoisture ? computeDeficitProjection(r.soilMoisture.deficitMm, r.rainBreakdown) : null
+  );
+  drawTempChart(r.dailyMeans, r.climatologyAvg);
+}
+
+function renderResult(r) {
+  lastRenderedResult = r;
+  const reasons = [];
+  if (!r.growthStarted) reasons.push(`9am soil temp hasn't reached \u22657\u00b0C and rising yet (currently ${r.recentTemp.toFixed(1)}\u00b0C, ${r.isRising ? 'rising' : 'not rising'})`);
+  if (r.rainForecast >= r.rainThresholdMm) {
+    if (r.soilMoisture && r.soilMoisture.deficitMm <= 0.5) {
+      reasons.push(`soil is already ${r.soilMoisture.category.toLowerCase()} (~${(r.soilMoisture.vwc * 100).toFixed(0)}% VWC) with little to no spare buffer, so any forecast rain (${r.rainForecast.toFixed(1)}mm) risks leaching rather than just refilling the soil`);
+    } else {
+      reasons.push(`forecast rain (${r.rainForecast.toFixed(1)}mm) exceeds the soil's remaining buffer (${r.rainThresholdMm.toFixed(0)}mm) before drainage/leaching risk` + (r.soilMoisture ? ` — soil is currently ${r.soilMoisture.category.toLowerCase()} (~${(r.soilMoisture.vwc * 100).toFixed(0)}% VWC)` : ''));
+    }
+  }
+
+  const cls = r.conditionsMet ? 'met' : 'hold';
+  const banner = r.conditionsMet ? "Get into it!" : "Wait up, it's too cold!";
+
+  let predictionHtml = '';
+  if (!r.growthStarted && r.predictedGrowthDate) {
+    const p = r.predictedGrowthDate;
+    if (p.status === 'predicted') {
+      predictionHtml = `<div class="reasons" style="margin-top:0; border-top:none; padding:10px 16px;">Soil temp forecast suggests growth may start around <strong>${toDDMM(p.date)}</strong> (~${p.daysAway} day${p.daysAway === 1 ? '' : 's'} away). Rain/leaching risk isn't forecastable that far out yet — recheck closer to the date.</div>`;
+    } else if (p.status === 'beyond_horizon') {
+      predictionHtml = `<div class="reasons" style="margin-top:0; border-top:none; padding:10px 16px;">Soil temp isn't forecast to reach the growth threshold within the next ${p.horizonDays} days — check back later in the season.</div>`;
+    }
+  }
+  if (!r.growthStarted && r.typicalCrossing) {
+    const t = r.typicalCrossing;
+    predictionHtml += `<div class="reasons" style="margin-top:0; border-top:none; padding:10px 16px;">Historically (last ${t.yearsUsed} of ${t.yearsTotal} years with usable data), growth has typically started around <strong>${t.monthDay}</strong> at this location — a climatological average, not a forecast.</div>`;
+  }
+
+  resultContainer.innerHTML = `
+    <div class="result ${cls}">
+      <div class="result-banner">${banner}</div>
+      ${predictionHtml}
+      <div class="result-body">
+        <div class="stat-row">
+          <span class="stat-label">10cm soil temp (9am reading)</span>
+          <span class="stat-value">${r.temp10.toFixed(1)}&deg;C</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Rain forecast, next 7 days</span>
+          <span class="stat-value">${r.rainForecast.toFixed(1)} mm</span>
+        </div>
+        ${!r.conditionsMet ? `<div class="reasons">Why hold off: ${reasons.join(', ')}.</div>` : ''}
+
+        <details id="resultDetails" ${detailsWasOpen ? 'open' : ''} style="margin-top:14px; border:none; background:transparent;">
+          <summary style="padding:0; text-transform:none; letter-spacing:normal; font-weight:700; color:var(--soil); font-size:13px;">Show details</summary>
+          <div style="margin-top:10px;">
+            <div class="stat-row">
+              <span class="stat-label">Growth started?</span>
+              <span class="stat-value">${r.growthStarted ? 'Yes' : 'Not yet'} (9am &ge;7&deg;C ${r.isRising ? '&amp; rising' : '&amp; not rising'})</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Accumulated GDD (base 5&deg;C, from ${GDD_START_MONTH_DAY})</span>
+              <span class="stat-value">${r.accumulatedGdd.toFixed(0)} / ${GDD_THRESHOLD_20KGDM}</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Likely &gt;20kgDM/ha/day?</span>
+              <span class="stat-value">${r.likelyStrongGrowth ? 'Likely' : 'Not yet'} (estimate only)</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Rain source</span>
+              <span class="stat-value" style="font-weight:400; font-size:12px;">${r.rainSource}</span>
+            </div>
+            ${r.soilMoisture ? `
+            <div class="stat-row">
+              <span class="stat-label">Soil moisture (300mm root zone)</span>
+              <span class="stat-value">${r.soilMoisture.category} (${(r.soilMoisture.vwc * 100).toFixed(0)}% VWC)</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Remaining buffer before drainage</span>
+              <span class="stat-value">~${r.soilMoisture.deficitMm.toFixed(0)} mm</span>
+            </div>` : ''}
+            <div class="stat-row">
+              <span class="stat-label">Rain threshold used</span>
+              <span class="stat-value">${r.rainThresholdMm.toFixed(0)} mm</span>
+            </div>
+
+            <div class="reasons" style="margin-top:14px;">
+              <div style="font-weight:700; margin-bottom:6px;">Rain (next 7 days) vs. soil buffer</div>
+              <canvas id="rainDeficitChart" width="400" height="180" style="width:100%; height:auto; background:#fff; border:1px solid #c9c0a8;"></canvas>
+              <p style="font-size:11px; color:#8a8068; margin:6px 0 0;">Bars = forecast rain. Line = remaining buffer before drainage, falling as rain "fills" it.</p>
+            </div>
+            <div class="reasons" style="margin-top:14px;">
+              <div style="font-weight:700; margin-bottom:6px;">Soil temp (10cm daily mean, for reference — decision uses 9am), last 7 days</div>
+              <canvas id="tempChart" width="400" height="180" style="width:100%; height:auto; background:#fff; border:1px solid #c9c0a8;"></canvas>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+    <p class="as-of">Most recent day: ${r.asOf}</p>
+  `;
+
+  const detailsEl = document.getElementById('resultDetails');
+  detailsEl.addEventListener('toggle', () => {
+    detailsWasOpen = detailsEl.open;
+    if (detailsEl.open) drawAllDetailCharts(lastRenderedResult);
+  });
+  if (detailsWasOpen) drawAllDetailCharts(r);
+}
+
+coordsInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runCheck(); });
+</script>
+
+</body>
+</html>
