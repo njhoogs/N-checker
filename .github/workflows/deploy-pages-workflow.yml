@@ -35,6 +35,14 @@ jobs:
           sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/index.html
           sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/index.html
 
+          # 9am-rule test variant — same secret injection, published under
+          # its own filename alongside the main page.
+          if [ -f spring-n-check-9am-rule.html ]; then
+            cp spring-n-check-9am-rule.html _site/spring-n-check-9am-rule.html
+            sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/spring-n-check-9am-rule.html
+            sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/spring-n-check-9am-rule.html
+          fi
+
       - name: Verify substitution (debug, no secret values shown)
         run: |
           SECRET_LEN="${#APPS_SCRIPT_URL_SECRET}"
