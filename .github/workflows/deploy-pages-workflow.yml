@@ -43,13 +43,6 @@ jobs:
             sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/spring-n-check-9am-rule.html
           fi
 
-          # 10am/7-day-window-rule test variant — same secret injection.
-          if [ -f spring-n-check-10am-rule.html ]; then
-            cp spring-n-check-10am-rule.html _site/spring-n-check-10am-rule.html
-            sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/spring-n-check-10am-rule.html
-            sed -i "s|APPS_SCRIPT_URL_PLACEHOLDER|${{ secrets.APPS_SCRIPT_URL }}|g" _site/spring-n-check-10am-rule.html
-          fi
-
           # 10-year threshold comparison (climatology only) — same secret
           # injection. This page has no Apps Script dependency, but the sed
           # is harmless if the placeholder isn't present.
