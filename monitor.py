@@ -1,4 +1,4 @@
-"""
+      """
 Daily spring N trigger monitor for all saved farm locations.
 
 Reads locations.json, checks each location's 10cm soil temp trend and
@@ -43,6 +43,11 @@ def distance_meters(lat1, lon1, lat2, lon2):
 
 SOIL_TEMP_THRESHOLD_C = 5.5      # growth-start threshold (Frame; ryegrass begins growth at this soil temp)
 CONSECUTIVE_DAYS_REQUIRED = 5    # must hold at/above threshold for this many consecutive days
+# Hard gate: growth-started check never triggers before this month, even if
+# soil temp clears the threshold earlier. Validated against real FAR probe
+# data at Ashburton and Methven — Canterbury soils can stay warm in June
+# from residual summer heat, producing false positives without this gate.
+GROWTH_CHECK_START_MONTH = 7    # 1-indexed; 7 = July
 GDD_BASE_TEMP_C = 5.0            # base temp for growing degree day accumulation (NZ cool-season pasture convention)
 GDD_START_MONTH_DAY = "06-01"    # accumulate GDD from 1 June each year (adjust to your local season start)
 GDD_THRESHOLD_20KGDM = 150       # STARTING ESTIMATE ONLY — calibrate against your own farm-walk growth data
@@ -263,14 +268,21 @@ def get_soil_temp_status(lat, lon):
     days = list(daily_means.keys())
     temps = list(daily_means.values())
 
-    # Consecutive-days-above-threshold check, ending on the most recent day
+    # Consecutive-days-above-threshold check, ending on the most recent day.
+    # Gate: never report growth_started before GROWTH_CHECK_START_MONTH (July)
+    # — validated against FAR probe data showing Canterbury soils can stay
+    # warm in June, producing false positives without this restriction.
+    from datetime import date as _date
+    today = _date.today()
+    gate_passed = today.month >= GROWTH_CHECK_START_MONTH
     consecutive = 0
-    for t in reversed(temps):
-        if t >= SOIL_TEMP_THRESHOLD_C:
-            consecutive += 1
-        else:
-            break
-    growth_started = consecutive >= CONSECUTIVE_DAYS_REQUIRED
+    if gate_passed:
+        for t in reversed(temps):
+            if t >= SOIL_TEMP_THRESHOLD_C:
+                consecutive += 1
+            else:
+                break
+    growth_started = gate_passed and consecutive >= CONSECUTIVE_DAYS_REQUIRED
 
     # GDD accumulation from gdd_start to most recent day
     accumulated_gdd = 0.0
@@ -707,4 +719,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    
