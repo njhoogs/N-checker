@@ -1,4 +1,4 @@
-      """
+"""
 Daily spring N trigger monitor for all saved farm locations.
 
 Reads locations.json, checks each location's 10cm soil temp trend and
@@ -269,9 +269,9 @@ def get_soil_temp_status(lat, lon):
     temps = list(daily_means.values())
 
     # Consecutive-days-above-threshold check, ending on the most recent day.
-    # Gate: never report growth_started before GROWTH_CHECK_START_MONTH (July)
-    # — validated against FAR probe data showing Canterbury soils can stay
-    # warm in June, producing false positives without this restriction.
+    # Gate: never report growth_started before GROWTH_CHECK_START_MONTH (July).
+    # Net-rising: the most recent day must be warmer than the first day of the
+    # qualifying window — filters brief warm blips that peak and then drop back.
     from datetime import date as _date
     today = _date.today()
     gate_passed = today.month >= GROWTH_CHECK_START_MONTH
@@ -282,7 +282,12 @@ def get_soil_temp_status(lat, lon):
                 consecutive += 1
             else:
                 break
-    growth_started = gate_passed and consecutive >= CONSECUTIVE_DAYS_REQUIRED
+    is_rising = False
+    if consecutive >= CONSECUTIVE_DAYS_REQUIRED:
+        window_start = temps[-(consecutive)]
+        window_end = temps[-1]
+        is_rising = window_end > window_start
+    growth_started = gate_passed and consecutive >= CONSECUTIVE_DAYS_REQUIRED and is_rising
 
     # GDD accumulation from gdd_start to most recent day
     accumulated_gdd = 0.0
@@ -296,6 +301,7 @@ def get_soil_temp_status(lat, lon):
         "recent_temp": temps[-1],
         "as_of": days[-1],
         "consecutive_days_above_threshold": consecutive,
+        "is_rising": is_rising,
         "growth_started": growth_started,
         "accumulated_gdd": accumulated_gdd,
         "likely_strong_growth": accumulated_gdd >= GDD_THRESHOLD_20KGDM,
@@ -612,7 +618,7 @@ def process_subscribers():
             f"This was a one-time notification — you've now been taken off the list and "
             f"won't get any further emails unless you sign up again from the page.\n\n"
             f"Soil temp (10cm daily mean): {result['soil_temp_10cm']}\u00b0C\n"
-            f"Growth started: {result['consecutive_days_above_threshold']} consecutive days \u22655.5\u00b0C\n"
+            f"Growth started: {result['consecutive_days_above_threshold']} consecutive days \u22655.5\u00b0C, {'rising \u2714' if result.get('is_rising') else 'not yet net rising'}\n"
             f"Accumulated GDD: {result['accumulated_gdd']} / {GDD_THRESHOLD_20KGDM}\n"
             f"Rain forecast (5 days): {result['rain_forecast_5day_mm']}mm\n"
             f"Rain forecast source: {result['rain_source']}\n"
@@ -719,4 +725,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()    
+    main()
