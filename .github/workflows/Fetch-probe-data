@@ -1,0 +1,51 @@
+name: Fetch Probe Data
+
+# Pulls real soil-probe daily means from Harvest and commits them as static
+# JSON under probe-data/. The page reads those files directly, so the Harvest
+# key stays in repo secrets and never reaches the browser.
+#
+# Runs three times a day. Soil temperature moves slowly and the rule needs five
+# consecutive daily means, so this is far more often than strictly needed - the
+# frequency is about tolerating a missed run, not freshness.
+
+"on":
+  schedule:
+    # 20:00, 02:00, 08:00 UTC = roughly 8am, 2pm, 8pm NZST
+    - cron: "0 20,2,8 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write        # needs to commit the fetched JSON back
+
+concurrency:
+  group: "probe-data"
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch probe data
+        env:
+          HARVEST_API_KEY: ${{ secrets.HARVEST_API_KEY }}
+        run: python fetch_probe_data.py
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain probe-data/)" ]; then
+            git add probe-data/
+            git commit -m "probe data: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          else
+            echo "no change"
+          fi
+
