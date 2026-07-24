@@ -1,9 +1,0 @@
-{
-  "Smith farm, block 3": {"lat": -44.029113, "lon": 171.277436},
-  "Kintore": {
-    "lat": -43.9481,
-    "lon": 171.3941,
-    "field_capacity_vwc": 0.27,
-    "root_zone_depth_mm": 300
-  }
-}
