@@ -1,0 +1,24 @@
+{
+  "kintore-wainui": {
+    "label": "Kintore (Wainui)",
+    "site_id": 1018,
+    "traces": [
+      61000,
+      60999
+    ],
+    "depth_mm": 100,
+    "lat": -43.945276,
+    "lon": 171.397821
+  },
+  "kintore-katoa": {
+    "label": "Kintore (Katoa)",
+    "site_id": 4974,
+    "traces": [
+      61180,
+      61181
+    ],
+    "depth_mm": 100,
+    "lat": -43.945276,
+    "lon": 171.397821
+  }
+}
