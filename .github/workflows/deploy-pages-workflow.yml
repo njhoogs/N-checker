@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch: {}
+  # Let the probe-data fetch workflow invoke this deploy once it has pushed new
+  # JSON. The bot's own push does NOT trigger the `push` event above (commits
+  # made with GITHUB_TOKEN deliberately don't retrigger workflows), so without
+  # this the served site never picks up fresh probe data.
+  workflow_call: {}
 
 permissions:
   contents: read
@@ -51,6 +56,17 @@ jobs:
             sed -i "s|YOUR_GOOGLE_MAPS_API_KEY|${{ secrets.GOOGLE_MAPS_API_KEY }}|g" _site/spring-n-climatology.html
           fi
 
+          # Probe data: real soil-probe JSON committed by the Fetch Probe Data
+          # workflow. The page fetches probe-data/<slug>.json at runtime, so it
+          # must be copied into the built site or it 404s (it is not part of the
+          # index.html the build otherwise assembles).
+          if [ -d probe-data ]; then
+            cp -r probe-data _site/probe-data
+            echo "copied probe-data/: $(ls -1 probe-data | wc -l) file(s)"
+          else
+            echo "no probe-data/ directory to copy"
+          fi
+
       - name: Verify substitution (debug, no secret values shown)
         run: |
           SECRET_LEN="${#APPS_SCRIPT_URL_SECRET}"
@@ -68,4 +84,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+
 
