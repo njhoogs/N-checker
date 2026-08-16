@@ -10,9 +10,9 @@
  "lat": -43.945276,
  "lon": 171.397821,
  "depth_mm": 100,
- "updated": "2026-08-16T08:17:30+00:00",
- "latest_date": "2026-08-15",
- "staleness_days": 1,
+ "updated": "2026-08-16T20:10:50+00:00",
+ "latest_date": "2026-08-16",
+ "staleness_days": 0,
  "stale": false,
  "qc_rejected": {
   "range": 0,
@@ -357,6 +357,11 @@
   {
    "date": "2026-08-15",
    "mean": 9.1,
+   "n": 1
+  },
+  {
+   "date": "2026-08-16",
+   "mean": 8.0,
    "n": 1
   }
  ]
